@@ -1,5 +1,5 @@
-import { relations } from 'drizzle-orm';
-import { pgTable, text, timestamp, boolean, index } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+import { pgTable, text, timestamp, boolean, index, pgPolicy } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -106,3 +106,67 @@ export const appSettings = pgTable('app_settings', {
 	key: text('key').primaryKey(),
 	value: text('value').notNull()
 });
+
+// Per-user content: gated by Postgres RLS (see PLANNING.md §5), not just
+// application code. Only reachable via `locals.withRLS`, never the plain
+// `db` import — see src/hooks.server.ts.
+export const chatConversation = pgTable(
+	'chat_conversation',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		title: text('title'),
+		targetLanguage: text('target_language'),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('chat_conversation_user_idx').on(t.userId),
+		pgPolicy('chat_conversation_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+export const chatMessage = pgTable(
+	'chat_message',
+	{
+		id: text('id').primaryKey(),
+		conversationId: text('conversation_id')
+			.notNull()
+			.references(() => chatConversation.id, { onDelete: 'cascade' }),
+		role: text('role', { enum: ['user', 'assistant'] }).notNull(),
+		content: text('content').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('chat_message_conversation_idx').on(t.conversationId),
+		pgPolicy('chat_message_access', {
+			for: 'all',
+			using: sql`
+				EXISTS (
+					SELECT 1 FROM chat_conversation
+					WHERE chat_conversation.id = ${t.conversationId}
+					AND chat_conversation.user_id = current_setting('app.current_user_id', true)
+				)
+			`
+		})
+	]
+).enableRLS();
+
+export const chatConversationRelations = relations(chatConversation, ({ one, many }) => ({
+	user: one(user, {
+		fields: [chatConversation.userId],
+		references: [user.id]
+	}),
+	messages: many(chatMessage)
+}));
+
+export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
+	conversation: one(chatConversation, {
+		fields: [chatMessage.conversationId],
+		references: [chatConversation.id]
+	})
+}));

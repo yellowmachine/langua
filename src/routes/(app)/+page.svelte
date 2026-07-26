@@ -30,6 +30,13 @@
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
+			<a
+				href={resolve('/chat')}
+				class="rounded-md border px-3 py-1.5 text-sm"
+				style:border-color="var(--color-border)"
+			>
+				Chat
+			</a>
 			{#if data.user.role === 'admin'}
 				<a
 					href={resolve('/family')}
@@ -37,6 +44,13 @@
 					style:border-color="var(--color-border)"
 				>
 					Familia
+				</a>
+				<a
+					href={resolve('/settings')}
+					class="rounded-md border px-3 py-1.5 text-sm"
+					style:border-color="var(--color-border)"
+				>
+					Ajustes
 				</a>
 			{/if}
 			<form method="POST" action="?/logout">

@@ -18,5 +18,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - 11434:11434
+    volumes:
+      - ollama_data:/root/.ollama
+
+  # One-shot: pulls the default chat model on first start so the family
+  # doesn't have to run `docker exec` themselves. Exits once done; re-runs
+  # (and no-ops, ollama skips already-pulled models) on every `compose up`.
+  ollama-pull:
+    image: ollama/ollama:latest
+    restart: 'no'
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        until ollama list >/dev/null 2>&1; do
+          echo "waiting for ollama..."
+          sleep 2
+        done
+        ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b}
+
 volumes:
   pgdata:
+  ollama_data:
