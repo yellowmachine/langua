@@ -66,7 +66,7 @@
 		</div>
 	</section>
 
-	<section class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+	<section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 		<div
 			class="rounded-lg border p-4"
 			style:border-color="var(--color-border)"
@@ -75,21 +75,6 @@
 			<h2 class="text-sm font-medium">Chat</h2>
 			<p class="mt-2 text-2xl font-semibold">{data.totals.chatMessages}</p>
 			<p class="text-sm" style:color="var(--color-ink-muted)">mensajes enviados</p>
-		</div>
-
-		<div
-			class="rounded-lg border p-4"
-			style:border-color="var(--color-border)"
-			style:background-color="var(--color-surface)"
-		>
-			<h2 class="text-sm font-medium">Hablar</h2>
-			<p class="mt-2 text-2xl font-semibold">{data.totals.speakingAttempts}</p>
-			<p class="text-sm" style:color="var(--color-ink-muted)">
-				intentos
-				{#if data.totals.speakingAvgScore !== null}
-					· {data.totals.speakingAvgScore}/100 de media
-				{/if}
-			</p>
 		</div>
 
 		<div

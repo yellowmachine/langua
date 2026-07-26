@@ -187,35 +187,6 @@ export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
 	})
 }));
 
-export const speakingAttempt = pgTable(
-	'speaking_attempt',
-	{
-		id: text('id').primaryKey(),
-		userId: text('user_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
-		targetLanguage: text('target_language').notNull(),
-		prompt: text('prompt').notNull(),
-		transcript: text('transcript').notNull(),
-		score: integer('score').notNull(),
-		createdAt: timestamp('created_at').defaultNow().notNull()
-	},
-	(t) => [
-		index('speaking_attempt_user_idx').on(t.userId),
-		pgPolicy('speaking_attempt_access', {
-			for: 'all',
-			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
-		})
-	]
-).enableRLS();
-
-export const speakingAttemptRelations = relations(speakingAttempt, ({ one }) => ({
-	user: one(user, {
-		fields: [speakingAttempt.userId],
-		references: [user.id]
-	})
-}));
-
 export const listeningAttempt = pgTable(
 	'listening_attempt',
 	{

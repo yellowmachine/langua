@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+	<title>Langua</title>
+	<rect width="64" height="64" fill="#7c5c3e" />
+	<rect x="17" y="20" width="30" height="19.5" rx="7.5" fill="#f9f7f4" />
+	<path d="M23.5 39.5 20.5 46 29.5 39.5Z" fill="#f9f7f4" />
+	<rect x="25.7" y="25.5" width="3" height="7.5" rx="1.5" fill="#7c5c3e" />
+	<rect x="30.5" y="22.5" width="3" height="13.5" rx="1.5" fill="#7c5c3e" />
+	<rect x="35.3" y="25.5" width="3" height="7.5" rx="1.5" fill="#7c5c3e" />
+</svg>

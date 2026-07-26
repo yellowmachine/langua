@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
+	import RecordButton from '$lib/components/RecordButton.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -25,6 +26,10 @@
 		if (!text || !data.activeId || busy) return;
 		input = '';
 		chat.sendMessage({ text });
+	}
+
+	function appendTranscript(text: string) {
+		input = input.trim() ? `${input.trim()} ${text}` : text;
 	}
 </script>
 
@@ -88,11 +93,16 @@
 				{/each}
 			</div>
 
-			<form onsubmit={submit} class="flex gap-2">
+			<form onsubmit={submit} class="flex items-center gap-2">
+				<RecordButton
+					onTranscript={appendTranscript}
+					language={data.user.targetLanguage}
+					disabled={busy}
+				/>
 				<input
 					bind:value={input}
 					type="text"
-					placeholder="Escribe un mensaje..."
+					placeholder="Escribe o graba un mensaje..."
 					disabled={busy}
 					class="flex-1 rounded-md border px-3 py-2 text-sm"
 					style:border-color="var(--color-border)"

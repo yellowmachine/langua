@@ -36,6 +36,13 @@
       "when": 1785055598939,
       "tag": "0004_furry_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785058446183,
+      "tag": "0005_magical_puppet_master",
+      "breakpoints": true
     }
   ]
 }

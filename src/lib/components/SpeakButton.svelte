@@ -39,28 +39,46 @@
 	type="button"
 	onclick={toggle}
 	aria-label={status === 'playing' ? 'Detener audio' : 'Escuchar'}
-	class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full opacity-80 hover:opacity-100"
+	class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors"
+	style:border-color={status === 'playing' ? 'var(--color-accent)' : 'var(--color-border)'}
+	style:background-color={status === 'playing' ? 'var(--color-accent)' : 'transparent'}
 >
 	{#if status === 'loading'}
-		<svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-			<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+		<svg
+			class="h-5 w-5 animate-spin"
+			viewBox="0 0 24 24"
+			fill="none"
+			style:color="var(--color-accent)"
+		>
+			<circle class="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3"
 			></circle>
-			<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+			<path class="opacity-90" fill="currentColor" d="M12 3a9 9 0 0 1 9 9h-3a6 6 0 0 0-6-6V3Z" />
 		</svg>
 	{:else if status === 'playing'}
-		<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-			<rect x="6" y="5" width="4" height="14" rx="1" />
-			<rect x="14" y="5" width="4" height="14" rx="1" />
+		<svg class="h-5 w-5" viewBox="0 0 24 24" fill="white">
+			<rect x="7" y="6" width="4" height="12" rx="1.2" />
+			<rect x="13" y="6" width="4" height="12" rx="1.2" />
 		</svg>
 	{:else}
-		<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-			<path d="M11 5 6 9H3v6h3l5 4V5z" />
+		<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-accent)">
 			<path
-				d="M15.5 8.5a5 5 0 0 1 0 7"
+				fill="currentColor"
+				d="M12.75 5.6a.9.9 0 0 0-1.53-.64L7.2 8.9H4.4a.9.9 0 0 0-.9.9v4.4a.9.9 0 0 0 .9.9h2.8l4.02 3.94a.9.9 0 0 0 1.53-.64V5.6Z"
+			/>
+			<path
 				stroke="currentColor"
-				stroke-width="1.5"
-				fill="none"
+				stroke-width="1.6"
 				stroke-linecap="round"
+				fill="none"
+				d="M16.3 9.3a4 4 0 0 1 0 5.6"
+			/>
+			<path
+				stroke="currentColor"
+				stroke-width="1.6"
+				stroke-linecap="round"
+				fill="none"
+				opacity="0.7"
+				d="M18.7 7a7.4 7.4 0 0 1 0 10.2"
 			/>
 		</svg>
 	{/if}

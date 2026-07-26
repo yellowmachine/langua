@@ -1,5 +1,5 @@
 import { and, avg, count, eq, gte, sql } from 'drizzle-orm';
-import { chatMessage, listeningAttempt, speakingAttempt } from '$lib/server/db/schema';
+import { chatMessage, listeningAttempt } from '$lib/server/db/schema';
 import { computeStreak } from '$lib/server/progress';
 import type { PageServerLoad } from './$types';
 
@@ -16,45 +16,33 @@ export const load: PageServerLoad = async ({ locals }) => {
 	since.setUTCHours(0, 0, 0, 0);
 
 	const chatDay = sql<string>`date_trunc('day', ${chatMessage.createdAt})::date`;
-	const speakingDay = sql<string>`date_trunc('day', ${speakingAttempt.createdAt})::date`;
 	const listeningDay = sql<string>`date_trunc('day', ${listeningAttempt.createdAt})::date`;
 
-	const [chatDays, speakingDays, listeningDays, [chatTotal], [speakingAgg], [listeningAgg]] =
-		await Promise.all([
-			locals.withRLS((tx) =>
-				tx
-					.select({ day: chatDay, count: count() })
-					.from(chatMessage)
-					.where(and(eq(chatMessage.role, 'user'), gte(chatMessage.createdAt, since)))
-					.groupBy(chatDay)
-			),
-			locals.withRLS((tx) =>
-				tx
-					.select({ day: speakingDay, count: count() })
-					.from(speakingAttempt)
-					.where(gte(speakingAttempt.createdAt, since))
-					.groupBy(speakingDay)
-			),
-			locals.withRLS((tx) =>
-				tx
-					.select({ day: listeningDay, count: count() })
-					.from(listeningAttempt)
-					.where(gte(listeningAttempt.createdAt, since))
-					.groupBy(listeningDay)
-			),
-			locals.withRLS((tx) =>
-				tx.select({ count: count() }).from(chatMessage).where(eq(chatMessage.role, 'user'))
-			),
-			locals.withRLS((tx) =>
-				tx.select({ count: count(), avgScore: avg(speakingAttempt.score) }).from(speakingAttempt)
-			),
-			locals.withRLS((tx) =>
-				tx.select({ count: count(), avgScore: avg(listeningAttempt.score) }).from(listeningAttempt)
-			)
-		]);
+	const [chatDays, listeningDays, [chatTotal], [listeningAgg]] = await Promise.all([
+		locals.withRLS((tx) =>
+			tx
+				.select({ day: chatDay, count: count() })
+				.from(chatMessage)
+				.where(and(eq(chatMessage.role, 'user'), gte(chatMessage.createdAt, since)))
+				.groupBy(chatDay)
+		),
+		locals.withRLS((tx) =>
+			tx
+				.select({ day: listeningDay, count: count() })
+				.from(listeningAttempt)
+				.where(gte(listeningAttempt.createdAt, since))
+				.groupBy(listeningDay)
+		),
+		locals.withRLS((tx) =>
+			tx.select({ count: count() }).from(chatMessage).where(eq(chatMessage.role, 'user'))
+		),
+		locals.withRLS((tx) =>
+			tx.select({ count: count(), avgScore: avg(listeningAttempt.score) }).from(listeningAttempt)
+		)
+	]);
 
 	const activityByDay = new Map<string, number>();
-	for (const rows of [chatDays, speakingDays, listeningDays]) {
+	for (const rows of [chatDays, listeningDays]) {
 		for (const row of rows) {
 			activityByDay.set(row.day, (activityByDay.get(row.day) ?? 0) + row.count);
 		}
@@ -74,8 +62,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		recentDays,
 		totals: {
 			chatMessages: chatTotal?.count ?? 0,
-			speakingAttempts: speakingAgg?.count ?? 0,
-			speakingAvgScore: toAvgScore(speakingAgg?.avgScore ?? null),
 			listeningAttempts: listeningAgg?.count ?? 0,
 			listeningAvgScore: toAvgScore(listeningAgg?.avgScore ?? null)
 		}

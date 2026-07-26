@@ -38,13 +38,6 @@
 				Chat
 			</a>
 			<a
-				href={resolve('/speak')}
-				class="rounded-md border px-3 py-1.5 text-sm"
-				style:border-color="var(--color-border)"
-			>
-				Hablar
-			</a>
-			<a
 				href={resolve('/listen')}
 				class="rounded-md border px-3 py-1.5 text-sm"
 				style:border-color="var(--color-border)"
@@ -92,7 +85,19 @@
 		style:background-color="var(--color-surface)"
 	>
 		<h2 class="mb-3 text-sm font-medium">Idioma</h2>
-		<form method="POST" action="?/language" use:enhance class="flex flex-col gap-3 sm:flex-row">
+		<form
+			method="POST"
+			action="?/language"
+			use:enhance={() => {
+				return async ({ update }) => {
+					// Default use:enhance behavior calls form.reset() on success,
+					// which snaps <select>s back to their first <option> instead
+					// of showing what was actually just saved.
+					await update({ reset: false });
+				};
+			}}
+			class="flex flex-col gap-3 sm:flex-row"
+		>
 			<label class="flex flex-1 flex-col gap-1 text-sm">
 				Idioma nativo
 				<select

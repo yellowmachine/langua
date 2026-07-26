@@ -1,0 +1,21 @@
+{
+	"name": "Langua",
+	"short_name": "Langua",
+	"description": "Aprende idiomas en familia: chat con IA, escuchar y hablar.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#f9f7f4",
+	"theme_color": "#7c5c3e",
+	"lang": "es",
+	"icons": [
+		{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+		{ "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+		{
+			"src": "/icons/maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	]
+}
