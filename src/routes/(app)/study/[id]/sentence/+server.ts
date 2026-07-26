@@ -52,3 +52,23 @@ export const PUT: RequestHandler = async (event) => {
 
 	return json({ ok: true });
 };
+
+export const DELETE: RequestHandler = async (event) => {
+	if (!event.locals.user) error(401, 'Unauthorized');
+
+	const { index } = await event.request.json();
+	if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
+		error(400, 'Invalid index');
+	}
+
+	const updated = await event.locals.withRLS((tx) =>
+		tx
+			.update(vocabItem)
+			.set({ extraExamples: sql`${vocabItem.extraExamples} #- ARRAY[${index.toString()}]::text[]` })
+			.where(eq(vocabItem.id, event.params.id))
+			.returning({ id: vocabItem.id })
+	);
+	if (updated.length === 0) error(404, 'Vocabulary item not found');
+
+	return json({ ok: true });
+};

@@ -18,10 +18,10 @@
 		return LANGUAGES.find((lang) => lang.code === code)?.label ?? code;
 	}
 
-	let savedExtra: Record<string, { sentence: string; translation: string }[]> = $state({});
+	let extraOverrides: Record<string, { sentence: string; translation: string }[]> = $state({});
 	let extraByItemId = $derived.by(() =>
 		Object.fromEntries(
-			data.items.map((item) => [item.id, [...item.extraExamples, ...(savedExtra[item.id] ?? [])]])
+			data.items.map((item) => [item.id, extraOverrides[item.id] ?? item.extraExamples])
 		)
 	);
 
@@ -72,7 +72,7 @@
 				body: JSON.stringify({ sentence: current.sentence, translation: current.translation })
 			});
 			if (!response.ok) return;
-			savedExtra[itemId] = [...(savedExtra[itemId] ?? []), current];
+			extraOverrides[itemId] = [...extraByItemId[itemId], current];
 			generation[itemId] = 'idle';
 		} catch {
 			// keep the generated sentence visible so the user can retry saving it
@@ -81,6 +81,21 @@
 
 	function discardSentence(itemId: string) {
 		generation[itemId] = 'idle';
+	}
+
+	async function deleteExample(itemId: string, index: number) {
+		const list = extraByItemId[itemId];
+		try {
+			const response = await fetch(`/study/${itemId}/sentence`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ index })
+			});
+			if (!response.ok) return;
+			extraOverrides[itemId] = list.filter((_, i) => i !== index);
+		} catch {
+			// leave it in place so the user can retry
+		}
 	}
 
 	let groups = $derived.by(() => {
@@ -189,6 +204,22 @@
 												<span style:color="var(--color-ink-muted)">— {example.translation}</span>
 											</p>
 											<SpeakButton text={example.sentence} language={item.targetLanguage} />
+											<button
+												type="button"
+												onclick={() => deleteExample(item.id, i)}
+												aria-label="Borrar frase"
+												class="shrink-0 rounded-md p-1 opacity-60 hover:opacity-100"
+											>
+												<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+													<path
+														stroke="currentColor"
+														stroke-width="1.6"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														d="M5 7h14M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m3 0-.8 12.1a2 2 0 0 1-2 1.9H7.8a2 2 0 0 1-2-1.9L5 7h14Z"
+													/>
+												</svg>
+											</button>
 										</div>
 									{/each}
 

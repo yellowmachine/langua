@@ -12,7 +12,9 @@ export const vocabularyExtractionSchema = z.object({
 			translation: z.string().describe('Translation into the native language'),
 			exampleSentence: z
 				.string()
-				.describe('The sentence from the conversation where the word appears, verbatim')
+				.describe(
+					'The sentence from the conversation where the word appears, verbatim but without any "user:"/"assistant:" speaker label'
+				)
 		})
 	)
 });
@@ -41,10 +43,18 @@ ${transcript}
 
 Extract the nouns, verbs, adjectives, and adverbs in this transcript that are useful for a language learner to study. Skip trivial function words (articles, pronouns, common prepositions/conjunctions) and skip words that are identical in ${targetName} and ${nativeName}. Never report the same lemma twice.
 
-For each word return: the exact form as it appeared, its dictionary/base form (lemma, lowercase), its part of speech, its translation into ${nativeName}, and the exact sentence from the transcript where it appears.
+For each word return: the exact form as it appeared, its dictionary/base form (lemma, lowercase), its part of speech, its translation into ${nativeName}, and the sentence from the transcript where it appears — just the sentence itself, without the leading "user:"/"assistant:" speaker label.
 
 If there is nothing worth extracting, return an empty items array.`
 	});
 
-	return object;
+	// Belt-and-suspenders: the model doesn't always follow the "no speaker
+	// label" instruction, and the transcript itself is built with a leading
+	// "user:"/"assistant:" per line, so strip it if it slipped through.
+	return {
+		items: object.items.map((item) => ({
+			...item,
+			exampleSentence: item.exampleSentence.replace(/^(user|assistant):\s*/i, '')
+		}))
+	};
 }
