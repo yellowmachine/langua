@@ -3,6 +3,7 @@
 	import { DefaultChatTransport } from 'ai';
 	import { enhance } from '$app/forms';
 	import { resolve } from '$app/paths';
+	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -66,19 +67,23 @@
 		{:else}
 			<div class="flex flex-1 flex-col gap-3 overflow-y-auto">
 				{#each chat.messages as message (message.id)}
-					<div
-						class="max-w-[80%] rounded-lg px-3 py-2 text-sm"
-						class:self-end={message.role === 'user'}
-						style:background-color={message.role === 'user'
-							? 'var(--color-accent)'
-							: 'var(--color-surface)'}
-						style:color={message.role === 'user' ? 'white' : 'var(--color-ink)'}
-					>
-						{#each message.parts as part, i (i)}
-							{#if part.type === 'text'}
-								{part.text}
-							{/if}
-						{/each}
+					{@const text = message.parts
+						.filter((part) => part.type === 'text')
+						.map((part) => part.text)
+						.join('')}
+					<div class="flex max-w-[80%] items-end gap-1.5" class:self-end={message.role === 'user'}>
+						<div
+							class="rounded-lg px-3 py-2 text-sm"
+							style:background-color={message.role === 'user'
+								? 'var(--color-accent)'
+								: 'var(--color-surface)'}
+							style:color={message.role === 'user' ? 'white' : 'var(--color-ink)'}
+						>
+							{text}
+						</div>
+						{#if message.role === 'assistant' && text}
+							<SpeakButton {text} language={data.user.targetLanguage} />
+						{/if}
 					</div>
 				{/each}
 			</div>

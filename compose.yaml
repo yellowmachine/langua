@@ -46,6 +46,15 @@ services:
         done
         ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b}
 
+  tts:
+    build: ./docker/tts
+    restart: unless-stopped
+    ports:
+      - 5002:5000
+    volumes:
+      - tts_voices:/data/voices
+
 volumes:
   pgdata:
   ollama_data:
+  tts_voices:

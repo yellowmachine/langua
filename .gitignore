@@ -12,6 +12,9 @@ node_modules
 .DS_Store
 Thumbs.db
 
+# TTS audio cache (dev only — in prod this lives in a docker volume)
+/data/audio
+
 # Env
 .env
 .env.*
