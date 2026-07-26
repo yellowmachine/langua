@@ -7,7 +7,13 @@
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import { fetchSpeechAudio } from '$lib/audio';
 	import { LANGUAGES } from '$lib/languages';
+	import { buildHighlightSegments, type HighlightError } from '$lib/textHighlight';
 	import type { ActionData, PageData } from './$types';
+
+	interface MessageAnalysis {
+		errors: HighlightError[];
+		explanation: string | null;
+	}
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -48,12 +54,37 @@
 	let busy = $derived(chat.status === 'streaming' || chat.status === 'submitted');
 	let newDialog: HTMLDialogElement | undefined = $state();
 
+	let analysisByMessageId: Record<string, MessageAnalysis | 'loading'> = $state({});
+
+	async function analyzeMessage(messageId: string, text: string) {
+		const language = data.activeConversation?.targetLanguage;
+		if (!language) return;
+
+		analysisByMessageId[messageId] = 'loading';
+		try {
+			const response = await fetch('/chat/analyze', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text, language })
+			});
+			if (!response.ok) {
+				delete analysisByMessageId[messageId];
+				return;
+			}
+			analysisByMessageId[messageId] = await response.json();
+		} catch {
+			delete analysisByMessageId[messageId];
+		}
+	}
+
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
 		const text = input.trim();
 		if (!text || !data.activeId || busy) return;
 		input = '';
-		chat.sendMessage({ text });
+		const id = crypto.randomUUID();
+		chat.sendMessage({ id, role: 'user', parts: [{ type: 'text', text }] });
+		analyzeMessage(id, text);
 	}
 
 	function appendTranscript(text: string) {
@@ -158,18 +189,53 @@
 						.filter((part) => part.type === 'text')
 						.map((part) => part.text)
 						.join('')}
-					<div class="flex max-w-[80%] items-end gap-1.5" class:self-end={message.role === 'user'}>
-						<div
-							class="rounded-lg px-3 py-2 text-sm"
-							style:background-color={message.role === 'user'
-								? 'var(--color-accent)'
-								: 'var(--color-surface)'}
-							style:color={message.role === 'user' ? 'white' : 'var(--color-ink)'}
-						>
-							{text}
+					{@const analysis = message.role === 'user' ? analysisByMessageId[message.id] : undefined}
+					{@const analysisData = analysis && analysis !== 'loading' ? analysis : null}
+					<div
+						class="flex max-w-[80%] flex-col gap-1"
+						class:items-end={message.role === 'user'}
+						class:self-end={message.role === 'user'}
+					>
+						<div class="flex items-end gap-1.5">
+							<div
+								class="rounded-lg px-3 py-2 text-sm"
+								style:background-color={message.role === 'user'
+									? 'var(--color-accent)'
+									: 'var(--color-surface)'}
+								style:color={message.role === 'user' ? 'white' : 'var(--color-ink)'}
+							>
+								{#if analysisData && analysisData.errors.length > 0}
+									{#each buildHighlightSegments(text, analysisData.errors) as segment, i (i)}
+										{#if segment.type === 'spelling'}
+											<span
+												class="underline decoration-2 underline-offset-2"
+												style:text-decoration-style="wavy"
+												style:text-decoration-color="#f87171">{segment.text}</span
+											>
+										{:else if segment.type === 'grammar'}
+											<span
+												class="underline decoration-2 underline-offset-2"
+												style:text-decoration-style="wavy"
+												style:text-decoration-color="#fbbf24">{segment.text}</span
+											>
+										{:else}
+											{segment.text}
+										{/if}
+									{/each}
+								{:else}
+									{text}
+								{/if}
+							</div>
+							{#if message.role === 'assistant' && text}
+								<SpeakButton {text} language={data.activeConversation?.targetLanguage} />
+							{/if}
 						</div>
-						{#if message.role === 'assistant' && text}
-							<SpeakButton {text} language={data.activeConversation?.targetLanguage} />
+						{#if analysis === 'loading'}
+							<p class="text-xs italic" style:color="var(--color-ink-muted)">Revisando texto...</p>
+						{:else if analysisData?.explanation}
+							<p class="text-xs italic" style:color="var(--color-ink-muted)">
+								{analysisData.explanation}
+							</p>
 						{/if}
 					</div>
 				{/each}
