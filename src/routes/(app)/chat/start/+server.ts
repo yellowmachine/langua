@@ -15,7 +15,11 @@ export const POST: RequestHandler = async (event) => {
 
 	const conversation = await event.locals.withRLS(async (tx) => {
 		const [row] = await tx
-			.select({ targetLanguage: chatConversation.targetLanguage, title: chatConversation.title })
+			.select({
+				targetLanguage: chatConversation.targetLanguage,
+				title: chatConversation.title,
+				level: chatConversation.level
+			})
 			.from(chatConversation)
 			.where(eq(chatConversation.id, conversationId));
 		return row;
@@ -32,7 +36,11 @@ export const POST: RequestHandler = async (event) => {
 	if (count > 0) return json({ started: false });
 
 	const model = await getChatModel();
-	const system = buildChatSystemPrompt(conversation.targetLanguage, conversation.title);
+	const system = buildChatSystemPrompt(
+		conversation.targetLanguage,
+		conversation.title,
+		conversation.level
+	);
 	const languageName = englishNameForLanguage(conversation.targetLanguage);
 
 	const { text } = await generateText({

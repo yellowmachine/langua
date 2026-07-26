@@ -8,6 +8,7 @@
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import { fetchSpeechAudio } from '$lib/audio';
 	import { LANGUAGES } from '$lib/languages';
+	import { LEVELS } from '$lib/levels';
 	import { CONVERSATION_TEMPLATES } from '$lib/conversationTemplates';
 	import { buildHighlightSegments, type HighlightError } from '$lib/textHighlight';
 	import type { ActionData, PageData } from './$types';
@@ -566,6 +567,22 @@
 				<option value="" disabled>Elige un idioma</option>
 				{#each LANGUAGES as lang (lang.code)}
 					<option value={lang.code}>{lang.label}</option>
+				{/each}
+			</select>
+		</label>
+
+		<label class="flex flex-col gap-1 text-sm">
+			Nivel
+			<select
+				name="level"
+				required
+				value="beginner"
+				class="rounded-md border px-3 py-2"
+				style:border-color="var(--color-border)"
+				style:background-color="var(--color-surface)"
+			>
+				{#each LEVELS as level (level.code)}
+					<option value={level.code}>{level.label}</option>
 				{/each}
 			</select>
 		</label>

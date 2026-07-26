@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { asc, desc, eq } from 'drizzle-orm';
 import { chatConversation, chatMessage } from '$lib/server/db/schema';
 import { LANGUAGES } from '$lib/languages';
+import { LEVELS } from '$lib/levels';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -61,9 +62,14 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const targetLanguage = String(data.get('targetLanguage') ?? '');
 		const title = String(data.get('title') ?? '').trim();
+		const levelInput = String(data.get('level') ?? '');
 
 		if (!LANGUAGES.some((lang) => lang.code === targetLanguage)) {
 			return fail(400, { message: 'Elige un idioma para la conversación.' });
+		}
+		const level = LEVELS.find((l) => l.code === levelInput)?.code;
+		if (!level) {
+			return fail(400, { message: 'Elige un nivel para la conversación.' });
 		}
 
 		const id = crypto.randomUUID();
@@ -72,7 +78,8 @@ export const actions: Actions = {
 				id,
 				userId: locals.user!.id,
 				targetLanguage,
-				title: title || null
+				title: title || null,
+				level
 			})
 		);
 

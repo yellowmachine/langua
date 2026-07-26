@@ -25,7 +25,8 @@ export const POST: RequestHandler = async (event) => {
 			.select({
 				id: chatConversation.id,
 				targetLanguage: chatConversation.targetLanguage,
-				title: chatConversation.title
+				title: chatConversation.title,
+				level: chatConversation.level
 			})
 			.from(chatConversation)
 			.where(eq(chatConversation.id, id));
@@ -45,7 +46,11 @@ export const POST: RequestHandler = async (event) => {
 	});
 
 	const model = await getChatModel();
-	const system = buildChatSystemPrompt(conversation.targetLanguage, conversation.title);
+	const system = buildChatSystemPrompt(
+		conversation.targetLanguage,
+		conversation.title,
+		conversation.level
+	);
 
 	const result = streamText({
 		model,

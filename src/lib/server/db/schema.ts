@@ -147,6 +147,7 @@ export const chatConversation = pgTable(
 			.references(() => user.id, { onDelete: 'cascade' }),
 		title: text('title'),
 		targetLanguage: text('target_language'),
+		level: text('level', { enum: ['beginner', 'intermediate', 'advanced'] }),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(t) => [
