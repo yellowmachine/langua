@@ -30,21 +30,38 @@
 		}
 	}
 
+	let quickReplies = $state(
+		typeof localStorage !== 'undefined'
+			? localStorage.getItem('langua-chat-quickreplies') === '1'
+			: false
+	);
+
+	function toggleQuickReplies() {
+		quickReplies = !quickReplies;
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('langua-chat-quickreplies', quickReplies ? '1' : '0');
+		}
+	}
+
 	let chat = $derived(
 		new Chat({
 			id: data.activeId ?? undefined,
 			messages: data.messages,
 			transport: new DefaultChatTransport({ api: resolve('/chat/api') }),
 			onFinish: ({ message, isAbort, isError }) => {
-				if (!autoPlay || isAbort || isError) return;
+				if (isAbort || isError) return;
 				const text = message.parts
 					.filter((part) => part.type === 'text')
 					.map((part) => part.text)
 					.join('');
-				if (text) {
+				if (!text) return;
+				if (autoPlay) {
 					fetchSpeechAudio(text, data.activeConversation?.targetLanguage).then((audio) =>
 						audio?.play()
 					);
+				}
+				if (quickReplies) {
+					fetchSuggestions(message.id, text);
 				}
 			}
 		})
@@ -88,6 +105,34 @@
 		analyzeMessage(id, data.activeId, text);
 	}
 
+	let sessionSuggestions: Record<string, string[] | 'loading'> = $state({});
+
+	async function fetchSuggestions(messageId: string, text: string) {
+		const language = data.activeConversation?.targetLanguage;
+		if (!language) return;
+
+		sessionSuggestions[messageId] = 'loading';
+		try {
+			const response = await fetch('/chat/suggestions', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text, language, focus: data.activeConversation?.title })
+			});
+			if (!response.ok) {
+				delete sessionSuggestions[messageId];
+				return;
+			}
+			const result: { suggestions: string[] } = await response.json();
+			sessionSuggestions[messageId] = result.suggestions;
+		} catch {
+			delete sessionSuggestions[messageId];
+		}
+	}
+
+	function useSuggestion(text: string) {
+		input = text;
+	}
+
 	function appendTranscript(text: string) {
 		input = input.trim() ? `${input.trim()} ${text}` : text;
 	}
@@ -125,24 +170,46 @@
 		</button>
 
 		{#if data.activeId}
-			<div class="flex items-center gap-2 text-sm">
-				<span style:color="var(--color-ink-muted)">Leer respuestas en voz alta</span>
-				<button
-					type="button"
-					role="switch"
-					aria-checked={autoPlay}
-					aria-label="Leer respuestas en voz alta"
-					onclick={toggleAutoPlay}
-					class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
-					style:border-color="var(--color-border)"
-					style:background-color={autoPlay ? 'var(--color-accent)' : 'var(--color-surface)'}
-				>
-					<span
-						class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
-						class:translate-x-4={autoPlay}
-						class:translate-x-0.5={!autoPlay}
-					></span>
-				</button>
+			<div class="flex flex-wrap items-center gap-4">
+				<div class="flex items-center gap-2 text-sm">
+					<span style:color="var(--color-ink-muted)">Leer respuestas en voz alta</span>
+					<button
+						type="button"
+						role="switch"
+						aria-checked={autoPlay}
+						aria-label="Leer respuestas en voz alta"
+						onclick={toggleAutoPlay}
+						class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
+						style:border-color="var(--color-border)"
+						style:background-color={autoPlay ? 'var(--color-accent)' : 'var(--color-surface)'}
+					>
+						<span
+							class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
+							class:translate-x-4={autoPlay}
+							class:translate-x-0.5={!autoPlay}
+						></span>
+					</button>
+				</div>
+
+				<div class="flex items-center gap-2 text-sm">
+					<span style:color="var(--color-ink-muted)">Sugerencias de respuesta</span>
+					<button
+						type="button"
+						role="switch"
+						aria-checked={quickReplies}
+						aria-label="Sugerencias de respuesta"
+						onclick={toggleQuickReplies}
+						class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
+						style:border-color="var(--color-border)"
+						style:background-color={quickReplies ? 'var(--color-accent)' : 'var(--color-surface)'}
+					>
+						<span
+							class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
+							class:translate-x-4={quickReplies}
+							class:translate-x-0.5={!quickReplies}
+						></span>
+					</button>
+				</div>
 			</div>
 		{/if}
 	</div>
@@ -201,6 +268,8 @@
 						{@const analysis =
 							message.role === 'user' ? analysisByMessageId[message.id] : undefined}
 						{@const analysisData = analysis && analysis !== 'loading' ? analysis : null}
+						{@const suggestions =
+							message.role === 'assistant' ? sessionSuggestions[message.id] : undefined}
 						<div
 							class="flex max-w-[80%] flex-col gap-1"
 							class:items-end={message.role === 'user'}
@@ -248,6 +317,25 @@
 								<p class="text-xs italic" style:color="var(--color-ink-muted)">
 									{analysisData.explanation}
 								</p>
+							{/if}
+							{#if suggestions === 'loading'}
+								<p class="text-xs italic" style:color="var(--color-ink-muted)">
+									Pensando sugerencias...
+								</p>
+							{:else if Array.isArray(suggestions) && suggestions.length > 0}
+								<div class="flex flex-wrap gap-1.5">
+									{#each suggestions as suggestion, i (i)}
+										<button
+											type="button"
+											onclick={() => useSuggestion(suggestion)}
+											class="rounded-full border border-dashed px-2.5 py-1 text-xs"
+											style:border-color="var(--color-accent)"
+											style:color="var(--color-accent)"
+										>
+											{suggestion}
+										</button>
+									{/each}
+								</div>
 							{/if}
 						</div>
 					{/each}
