@@ -64,6 +64,13 @@
       "when": 1785076219393,
       "tag": "0008_new_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785076957465,
+      "tag": "0009_clammy_mandarin",
+      "breakpoints": true
     }
   ]
 }

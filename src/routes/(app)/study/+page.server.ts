@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				translation: vocabItem.translation,
 				exampleSentence: vocabItem.exampleSentence,
 				extraExamples: vocabItem.extraExamples,
+				tags: vocabItem.tags,
 				createdAt: vocabItem.createdAt
 			})
 			.from(vocabItem)

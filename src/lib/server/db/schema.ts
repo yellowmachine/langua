@@ -24,6 +24,11 @@ export type ChatMessageAnalysis = {
 	explanation: string | null;
 };
 
+export type VocabExample = {
+	sentence: string;
+	translation: string;
+};
+
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),
@@ -239,7 +244,8 @@ export const vocabItem = pgTable(
 		}).notNull(),
 		translation: text('translation').notNull(),
 		exampleSentence: text('example_sentence').notNull(),
-		extraExamples: jsonb('extra_examples').$type<string[]>().default([]).notNull(),
+		extraExamples: jsonb('extra_examples').$type<VocabExample[]>().default([]).notNull(),
+		tags: jsonb('tags').$type<string[]>().default([]).notNull(),
 		// Kept even if the source conversation is deleted, so the study book survives it.
 		sourceConversationId: text('source_conversation_id').references(() => chatConversation.id, {
 			onDelete: 'set null'

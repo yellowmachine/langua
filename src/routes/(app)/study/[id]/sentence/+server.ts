@@ -21,27 +21,29 @@ export const POST: RequestHandler = async (event) => {
 	);
 	if (!item) error(404, 'Vocabulary item not found');
 
-	const { sentence } = await generateExampleSentence(
+	const { sentence, translation } = await generateExampleSentence(
 		item.word,
 		item.partOfSpeech,
 		item.targetLanguage,
-		[item.exampleSentence, ...item.extraExamples]
+		event.locals.user.nativeLanguage ?? 'English',
+		[item.exampleSentence, ...item.extraExamples.map((example) => example.sentence)]
 	);
 
-	return json({ sentence });
+	return json({ sentence, translation });
 };
 
 export const PUT: RequestHandler = async (event) => {
 	if (!event.locals.user) error(401, 'Unauthorized');
 
-	const { sentence } = await event.request.json();
+	const { sentence, translation } = await event.request.json();
 	if (typeof sentence !== 'string' || !sentence.trim()) error(400, 'Missing sentence');
+	if (typeof translation !== 'string' || !translation.trim()) error(400, 'Missing translation');
 
 	const updated = await event.locals.withRLS((tx) =>
 		tx
 			.update(vocabItem)
 			.set({
-				extraExamples: sql`${vocabItem.extraExamples} || ${JSON.stringify([sentence])}::jsonb`
+				extraExamples: sql`${vocabItem.extraExamples} || ${JSON.stringify([{ sentence, translation }])}::jsonb`
 			})
 			.where(eq(vocabItem.id, event.params.id))
 			.returning({ id: vocabItem.id })
