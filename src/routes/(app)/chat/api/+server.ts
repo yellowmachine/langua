@@ -20,12 +20,16 @@ export const POST: RequestHandler = async (event) => {
 	const lastMessage = messages.at(-1);
 	if (!lastMessage) error(400, 'No message to send');
 
-	await event.locals.withRLS(async (tx) => {
-		const [conversation] = await tx
-			.select({ id: chatConversation.id, targetLanguage: chatConversation.targetLanguage })
+	const conversation = await event.locals.withRLS(async (tx) => {
+		const [row] = await tx
+			.select({
+				id: chatConversation.id,
+				targetLanguage: chatConversation.targetLanguage,
+				title: chatConversation.title
+			})
 			.from(chatConversation)
 			.where(eq(chatConversation.id, id));
-		if (!conversation) error(404, 'Conversation not found');
+		if (!row) error(404, 'Conversation not found');
 
 		await tx.insert(chatMessage).values({
 			id: crypto.randomUUID(),
@@ -33,15 +37,20 @@ export const POST: RequestHandler = async (event) => {
 			role: 'user',
 			content: textFromMessage(lastMessage)
 		});
+
+		return row;
 	});
 
 	const model = await getChatModel();
-	const targetLanguage = event.locals.user.targetLanguage;
-	const languageName = englishNameForLanguage(targetLanguage);
+	const languageName = englishNameForLanguage(conversation.targetLanguage);
+
+	const system = conversation.title
+		? `You are a friendly, patient conversation partner helping the user practice ${languageName}. Keep replies short (2-4 sentences), stay in ${languageName} unless the user switches language, and gently correct significant mistakes. The learner set this focus for the conversation (their own words, possibly in their native language): "${conversation.title}". Steer the conversation towards that focus.`
+		: `You are a friendly, patient conversation partner helping the user practice ${languageName}. Keep replies short (2-4 sentences), stay in ${languageName} unless the user switches language, and gently correct significant mistakes.`;
 
 	const result = streamText({
 		model,
-		system: `You are a friendly, patient conversation partner helping the user practice ${languageName}. Keep replies short (2-4 sentences), stay in ${languageName} unless the user switches language, and gently correct significant mistakes.`,
+		system,
 		messages: await convertToModelMessages(messages)
 	});
 

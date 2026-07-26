@@ -5,9 +5,10 @@
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
-	import type { PageData } from './$types';
+	import { LANGUAGES } from '$lib/languages';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let chat = $derived(
 		new Chat({
@@ -19,6 +20,7 @@
 
 	let input = $state('');
 	let busy = $derived(chat.status === 'streaming' || chat.status === 'submitted');
+	let newDialog: HTMLDialogElement | undefined = $state();
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -31,32 +33,56 @@
 	function appendTranscript(text: string) {
 		input = input.trim() ? `${input.trim()} ${text}` : text;
 	}
+
+	function confirmDelete(event: MouseEvent) {
+		if (!confirm('¿Borrar esta conversación? No se puede deshacer.')) {
+			event.preventDefault();
+		}
+	}
 </script>
 
 <div class="mx-auto flex h-full max-w-4xl gap-6 p-6">
 	<aside class="flex w-48 shrink-0 flex-col gap-3 overflow-y-auto">
-		<form method="POST" action="?/new" use:enhance>
-			<button
-				type="submit"
-				class="w-full rounded-md px-3 py-2 text-sm font-medium text-white"
-				style:background-color="var(--color-accent)"
-			>
-				Nueva conversación
-			</button>
-		</form>
+		<button
+			type="button"
+			onclick={() => newDialog?.showModal()}
+			class="w-full rounded-md px-3 py-2 text-sm font-medium text-white"
+			style:background-color="var(--color-accent)"
+		>
+			Nueva conversación
+		</button>
 
 		<ul class="flex flex-col gap-1">
 			{#each data.conversations as conversation (conversation.id)}
-				<li>
+				<li class="flex items-center gap-1">
 					<a
 						href={resolve(`/chat/${conversation.id}`)}
-						class="block truncate rounded-md px-2 py-1.5 text-sm"
+						class="block flex-1 truncate rounded-md px-2 py-1.5 text-sm"
 						style:background-color={conversation.id === data.activeId
 							? 'var(--color-surface)'
 							: 'transparent'}
 					>
 						{conversation.title ?? 'Conversación'}
 					</a>
+					<form method="POST" action="?/delete" use:enhance>
+						<input type="hidden" name="id" value={conversation.id} />
+						<button
+							type="submit"
+							onclick={confirmDelete}
+							aria-label="Borrar conversación"
+							class="shrink-0 rounded-md p-1.5 opacity-60 hover:opacity-100"
+						>
+							<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
+								<path
+									stroke="currentColor"
+									stroke-width="1.6"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									d="M5 7h14M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m3 0-.8 12.1a2 2 0 0 1-2 1.9H7.8a2 2 0 0 1-2-1.9L5 7h14Z"
+								/>
+							</svg>
+						</button>
+					</form>
 				</li>
 			{/each}
 		</ul>
@@ -83,7 +109,7 @@
 							{text}
 						</div>
 						{#if message.role === 'assistant' && text}
-							<SpeakButton {text} language={data.user.targetLanguage} />
+							<SpeakButton {text} language={data.activeConversation?.targetLanguage} />
 						{/if}
 					</div>
 				{/each}
@@ -92,7 +118,7 @@
 			<form onsubmit={submit} class="flex items-center gap-2">
 				<RecordButton
 					onTranscript={appendTranscript}
-					language={data.user.targetLanguage}
+					language={data.activeConversation?.targetLanguage}
 					disabled={busy}
 				/>
 				<input
@@ -116,3 +142,67 @@
 		{/if}
 	</section>
 </div>
+
+<dialog
+	bind:this={newDialog}
+	onclick={(event) => {
+		if (event.target === newDialog) newDialog?.close();
+	}}
+	class="w-full max-w-sm rounded-lg p-0 backdrop:bg-black/40"
+	style:background-color="var(--color-background)"
+	style:color="var(--color-ink)"
+>
+	<form method="POST" action="?/new" use:enhance class="flex flex-col gap-4 p-5">
+		<h2 class="text-lg font-semibold">Nueva conversación</h2>
+
+		<label class="flex flex-col gap-1 text-sm">
+			Idioma
+			<select
+				name="targetLanguage"
+				required
+				value={data.user.targetLanguage ?? ''}
+				class="rounded-md border px-3 py-2"
+				style:border-color="var(--color-border)"
+				style:background-color="var(--color-surface)"
+			>
+				<option value="" disabled>Elige un idioma</option>
+				{#each LANGUAGES as lang (lang.code)}
+					<option value={lang.code}>{lang.label}</option>
+				{/each}
+			</select>
+		</label>
+
+		<label class="flex flex-col gap-1 text-sm">
+			¿De qué quieres hablar? (opcional)
+			<textarea
+				name="title"
+				rows="3"
+				placeholder="Ej: practicar verbos modales, hablar de un viaje..."
+				class="rounded-md border px-3 py-2 text-sm"
+				style:border-color="var(--color-border)"
+				style:background-color="var(--color-surface)"></textarea>
+		</label>
+
+		{#if form?.message}
+			<p class="text-sm text-red-600">{form.message}</p>
+		{/if}
+
+		<div class="flex justify-end gap-2">
+			<button
+				type="button"
+				onclick={() => newDialog?.close()}
+				class="rounded-md border px-3 py-2 text-sm"
+				style:border-color="var(--color-border)"
+			>
+				Cancelar
+			</button>
+			<button
+				type="submit"
+				class="rounded-md px-3 py-2 text-sm font-medium text-white"
+				style:background-color="var(--color-accent)"
+			>
+				Crear
+			</button>
+		</div>
+	</form>
+</dialog>
