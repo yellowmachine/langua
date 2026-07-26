@@ -51,6 +51,13 @@
 			>
 				Escuchar
 			</a>
+			<a
+				href={resolve('/progress')}
+				class="rounded-md border px-3 py-1.5 text-sm"
+				style:border-color="var(--color-border)"
+			>
+				Progreso
+			</a>
 			{#if data.user.role === 'admin'}
 				<a
 					href={resolve('/family')}
