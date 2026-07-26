@@ -65,6 +65,17 @@
 			event.preventDefault();
 		}
 	}
+
+	const dateFormatter = new Intl.DateTimeFormat('es', {
+		day: 'numeric',
+		month: 'short',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+
+	function formatDate(date: Date) {
+		return dateFormatter.format(date);
+	}
 </script>
 
 <div class="mx-auto flex h-full max-w-4xl gap-6 p-6">
@@ -83,12 +94,15 @@
 				<li class="flex items-center gap-1">
 					<a
 						href={resolve(`/chat/${conversation.id}`)}
-						class="block flex-1 truncate rounded-md px-2 py-1.5 text-sm"
+						class="flex flex-1 flex-col gap-0.5 rounded-md px-2 py-1.5"
 						style:background-color={conversation.id === data.activeId
 							? 'var(--color-surface)'
 							: 'transparent'}
 					>
-						{conversation.title ?? 'Conversación'}
+						<span class="truncate text-sm">{conversation.title ?? 'Conversación libre'}</span>
+						<span class="truncate text-xs" style:color="var(--color-ink-muted)">
+							{formatDate(conversation.createdAt)}
+						</span>
 					</a>
 					<form method="POST" action="?/delete" use:enhance>
 						<input type="hidden" name="id" value={conversation.id} />
@@ -194,7 +208,7 @@
 	onclick={(event) => {
 		if (event.target === newDialog) newDialog?.close();
 	}}
-	class="w-full max-w-sm rounded-lg p-0 backdrop:bg-black/40"
+	class="m-auto w-full max-w-sm rounded-lg p-0 backdrop:bg-black/40"
 	style:background-color="var(--color-background)"
 	style:color="var(--color-ink)"
 >
