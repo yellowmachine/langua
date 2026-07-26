@@ -10,6 +10,9 @@ name: langua-prod
 #
 # Only the app's port reaches the host; postgres/ollama/tts/stt are only
 # reachable from inside the compose network.
+#
+# On a box with a dedicated AMD GPU, layer docker-compose.prod.amd.yml on
+# top to run Ollama on ROCm instead of the CPU — see that file for usage.
 
 services:
   postgres:

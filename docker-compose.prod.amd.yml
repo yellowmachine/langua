@@ -1,0 +1,32 @@
+# AMD dedicated-GPU override for docker-compose.prod.yml.
+#
+# Swaps the `ollama` service to the ROCm-enabled image and passes through
+# the host's /dev/kfd + /dev/dri so inference runs on the GPU instead of
+# the CPU. Tested against a Navi 32 card (Radeon RX 7700 XT / 7800 XT,
+# gfx1101) — ROCm's official support list only lists gfx1100 (RX 7900
+# series), so HSA_OVERRIDE_GFX_VERSION tells it to treat the card as one.
+# Drop the override (or set it to your own card's gfx version) if you're
+# on different hardware — check with `rocminfo | grep gfx`.
+#
+# Requires the host to have the amdgpu kernel driver loaded (standard on
+# any recent Linux with an AMD GPU) and the user running docker to be in
+# the `video`/`render` groups — no separate ROCm install needed on the
+# host, the container brings its own userspace stack.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.amd.yml --env-file .env.prod up -d --build
+
+services:
+  ollama:
+    image: ollama/ollama:rocm
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    group_add:
+      # Numeric GIDs, not names: `group_add` resolves names against the
+      # container image's own /etc/group (which has no `render` entry),
+      # not the host's. Check yours with `getent group render video`.
+      - '983' # video
+      - '987' # render
+    environment:
+      HSA_OVERRIDE_GFX_VERSION: '11.0.0'
