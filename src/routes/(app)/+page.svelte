@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	import { resolve } from '$app/paths';
 	import ThemePicker from '$lib/components/ThemePicker.svelte';
+	import { LANGUAGES } from '$lib/languages';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -26,16 +29,74 @@
 				{data.user.targetLanguage ?? 'sin idioma configurado todavía'}
 			</p>
 		</div>
-		<form method="POST" action="?/logout">
+		<div class="flex items-center gap-2">
+			{#if data.user.role === 'admin'}
+				<a
+					href={resolve('/family')}
+					class="rounded-md border px-3 py-1.5 text-sm"
+					style:border-color="var(--color-border)"
+				>
+					Familia
+				</a>
+			{/if}
+			<form method="POST" action="?/logout">
+				<button
+					type="submit"
+					class="rounded-md border px-3 py-1.5 text-sm"
+					style:border-color="var(--color-border)"
+				>
+					Cerrar sesión
+				</button>
+			</form>
+		</div>
+	</header>
+
+	<section
+		class="rounded-lg border p-4"
+		style:border-color="var(--color-border)"
+		style:background-color="var(--color-surface)"
+	>
+		<h2 class="mb-3 text-sm font-medium">Idioma</h2>
+		<form method="POST" action="?/language" use:enhance class="flex flex-col gap-3 sm:flex-row">
+			<label class="flex flex-1 flex-col gap-1 text-sm">
+				Idioma nativo
+				<select
+					name="nativeLanguage"
+					value={data.user.nativeLanguage ?? ''}
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					<option value="">Sin especificar</option>
+					{#each LANGUAGES as lang (lang.code)}
+						<option value={lang.code}>{lang.label}</option>
+					{/each}
+				</select>
+			</label>
+			<label class="flex flex-1 flex-col gap-1 text-sm">
+				Idioma que aprendo
+				<select
+					name="targetLanguage"
+					value={data.user.targetLanguage ?? ''}
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					<option value="">Sin especificar</option>
+					{#each LANGUAGES as lang (lang.code)}
+						<option value={lang.code}>{lang.label}</option>
+					{/each}
+				</select>
+			</label>
 			<button
 				type="submit"
-				class="rounded-md border px-3 py-1.5 text-sm"
-				style:border-color="var(--color-border)"
+				class="self-end rounded-md px-3 py-2 text-sm font-medium text-white"
+				style:background-color="var(--color-accent)"
 			>
-				Cerrar sesión
+				Guardar
 			</button>
 		</form>
-	</header>
+	</section>
 
 	<section
 		class="rounded-lg border p-4"

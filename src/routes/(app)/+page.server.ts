@@ -23,5 +23,21 @@ export const actions: Actions = {
 			.update(userTable)
 			.set({ theme, dark, highContrast })
 			.where(eq(userTable.id, event.locals.user.id));
+	},
+
+	language: async (event) => {
+		if (!event.locals.user) redirect(303, '/login');
+
+		const data = await event.request.formData();
+		const nativeLanguage = String(data.get('nativeLanguage') ?? '').trim();
+		const targetLanguage = String(data.get('targetLanguage') ?? '').trim();
+
+		await db
+			.update(userTable)
+			.set({
+				nativeLanguage: nativeLanguage || null,
+				targetLanguage: targetLanguage || null
+			})
+			.where(eq(userTable.id, event.locals.user.id));
 	}
 };

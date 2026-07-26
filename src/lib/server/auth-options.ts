@@ -21,7 +21,12 @@ export function createAuthOptions(params: {
 		secret: params.secret,
 		baseURL: params.baseURL,
 		emailAndPassword: {
-			enabled: true
+			enabled: true,
+			// Off by default: sign-up is also how an admin creates a family
+			// member's account (POST /family), and that must not swap out the
+			// admin's own session cookie for the new member's. /setup and
+			// /family sign the resulting user in explicitly when needed.
+			autoSignIn: false
 		},
 		user: {
 			additionalFields: {
