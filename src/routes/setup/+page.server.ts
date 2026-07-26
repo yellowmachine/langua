@@ -43,6 +43,6 @@ export const actions: Actions = {
 			throw error;
 		}
 
-		redirect(303, '/');
+		redirect(303, '/dashboard');
 	}
 };

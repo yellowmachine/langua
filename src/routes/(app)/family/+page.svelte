@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { resolve } from '$app/paths';
 	import { LANGUAGES } from '$lib/languages';
 	import type { ActionData, PageData } from './$types';
 
@@ -13,11 +12,8 @@
 </script>
 
 <div class="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 p-6">
-	<header class="flex items-center justify-between">
+	<header>
 		<h1 class="text-xl font-semibold">Familia</h1>
-		<a href={resolve('/')} class="text-sm underline" style:color="var(--color-ink-muted)">
-			Volver
-		</a>
 	</header>
 
 	<section

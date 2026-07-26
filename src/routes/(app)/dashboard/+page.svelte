@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { resolve } from '$app/paths';
 	import ThemePicker from '$lib/components/ThemePicker.svelte';
 	import { LANGUAGES } from '$lib/languages';
 	import type { PageData } from './$types';
@@ -20,63 +19,13 @@
 	}
 </script>
 
-<div class="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 p-6">
-	<header class="flex items-center justify-between">
-		<div>
-			<h1 class="text-xl font-semibold">Hola, {data.user.name}</h1>
-			<p class="text-sm" style:color="var(--color-ink-muted)">
-				{data.user.role === 'admin' ? 'Administrador' : 'Miembro'} ·
-				{data.user.targetLanguage ?? 'sin idioma configurado todavía'}
-			</p>
-		</div>
-		<div class="flex items-center gap-2">
-			<a
-				href={resolve('/chat')}
-				class="rounded-md border px-3 py-1.5 text-sm"
-				style:border-color="var(--color-border)"
-			>
-				Chat
-			</a>
-			<a
-				href={resolve('/listen')}
-				class="rounded-md border px-3 py-1.5 text-sm"
-				style:border-color="var(--color-border)"
-			>
-				Escuchar
-			</a>
-			<a
-				href={resolve('/progress')}
-				class="rounded-md border px-3 py-1.5 text-sm"
-				style:border-color="var(--color-border)"
-			>
-				Progreso
-			</a>
-			{#if data.user.role === 'admin'}
-				<a
-					href={resolve('/family')}
-					class="rounded-md border px-3 py-1.5 text-sm"
-					style:border-color="var(--color-border)"
-				>
-					Familia
-				</a>
-				<a
-					href={resolve('/settings')}
-					class="rounded-md border px-3 py-1.5 text-sm"
-					style:border-color="var(--color-border)"
-				>
-					Ajustes
-				</a>
-			{/if}
-			<form method="POST" action="?/logout">
-				<button
-					type="submit"
-					class="rounded-md border px-3 py-1.5 text-sm"
-					style:border-color="var(--color-border)"
-				>
-					Cerrar sesión
-				</button>
-			</form>
-		</div>
+<div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
+	<header>
+		<h1 class="text-xl font-semibold">Hola, {data.user.name}</h1>
+		<p class="text-sm" style:color="var(--color-ink-muted)">
+			{data.user.role === 'admin' ? 'Administrador' : 'Miembro'} ·
+			{data.user.targetLanguage ?? 'sin idioma configurado todavía'}
+		</p>
 	</header>
 
 	<section

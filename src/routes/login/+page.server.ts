@@ -6,7 +6,7 @@ import { user } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (locals.user) redirect(303, '/');
+	if (locals.user) redirect(303, '/dashboard');
 
 	const [existing] = await db.select({ id: user.id }).from(user).limit(1);
 	if (!existing) redirect(303, '/setup');
@@ -34,6 +34,6 @@ export const actions: Actions = {
 			throw error;
 		}
 
-		redirect(303, '/');
+		redirect(303, '/dashboard');
 	}
 };

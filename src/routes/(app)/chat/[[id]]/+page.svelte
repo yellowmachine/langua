@@ -35,10 +35,6 @@
 
 <div class="mx-auto flex min-h-screen max-w-4xl gap-6 p-6">
 	<aside class="flex w-48 shrink-0 flex-col gap-3">
-		<a href={resolve('/')} class="text-sm underline" style:color="var(--color-ink-muted)">
-			Volver
-		</a>
-
 		<form method="POST" action="?/new" use:enhance>
 			<button
 				type="submit"
