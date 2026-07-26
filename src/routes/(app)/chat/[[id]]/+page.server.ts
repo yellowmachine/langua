@@ -27,7 +27,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 						id: chatMessage.id,
 						role: chatMessage.role,
 						content: chatMessage.content,
-						analysis: chatMessage.analysis
+						analysis: chatMessage.analysis,
+						translation: chatMessage.translation
 					})
 					.from(chatMessage)
 					.where(eq(chatMessage.conversationId, activeId))
@@ -46,6 +47,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		})),
 		analysisByMessageId: Object.fromEntries(
 			rows.filter((row) => row.analysis).map((row) => [row.id, row.analysis!])
+		),
+		translationByMessageId: Object.fromEntries(
+			rows.filter((row) => row.translation).map((row) => [row.id, row.translation!])
 		)
 	};
 };

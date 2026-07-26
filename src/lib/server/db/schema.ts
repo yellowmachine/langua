@@ -168,6 +168,7 @@ export const chatMessage = pgTable(
 		role: text('role', { enum: ['user', 'assistant'] }).notNull(),
 		content: text('content').notNull(),
 		analysis: jsonb('analysis').$type<ChatMessageAnalysis>(),
+		translation: text('translation'),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(t) => [

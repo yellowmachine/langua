@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { convertToModelMessages, streamText, type UIMessage } from 'ai';
+import { convertToModelMessages, generateId, streamText, type UIMessage } from 'ai';
 import { getChatModel } from '$lib/server/ai/chat';
 import { chatConversation, chatMessage } from '$lib/server/db/schema';
 import { englishNameForLanguage } from '$lib/languages';
@@ -59,14 +59,22 @@ export const POST: RequestHandler = async (event) => {
 
 	return result.toUIMessageStreamResponse({
 		originalMessages: messages,
+		// Without this, the SDK never assigns the response message a real id:
+		// the server would persist it with an empty id while the client mints
+		// its own separate one, so anything trying to persist by messageId
+		// (like the translation feature) would silently create a duplicate row.
+		generateMessageId: generateId,
 		onEnd: async ({ responseMessage }) => {
 			await event.locals.withRLS(async (tx) => {
-				await tx.insert(chatMessage).values({
-					id: crypto.randomUUID(),
-					conversationId: id,
-					role: 'assistant',
-					content: textFromMessage(responseMessage)
-				});
+				await tx
+					.insert(chatMessage)
+					.values({
+						id: responseMessage.id,
+						conversationId: id,
+						role: 'assistant',
+						content: textFromMessage(responseMessage)
+					})
+					.onConflictDoNothing({ target: chatMessage.id });
 			});
 		}
 	});

@@ -74,6 +74,38 @@
 	let sessionAnalysis: Record<string, MessageAnalysis | 'loading'> = $state({});
 	let analysisByMessageId = $derived({ ...data.analysisByMessageId, ...sessionAnalysis });
 
+	let sessionTranslation: Record<string, string | 'loading'> = $state({});
+	let translationByMessageId = $derived({ ...data.translationByMessageId, ...sessionTranslation });
+	let expandedTranslation: Record<string, boolean> = $state({});
+
+	async function toggleTranslation(messageId: string, text: string) {
+		expandedTranslation[messageId] = !expandedTranslation[messageId];
+		if (!expandedTranslation[messageId]) return;
+
+		const existing = translationByMessageId[messageId];
+		if (existing && existing !== 'loading') return;
+
+		const language = data.activeConversation?.targetLanguage;
+		if (!language || !data.activeId) return;
+
+		sessionTranslation[messageId] = 'loading';
+		try {
+			const response = await fetch('/chat/translate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ messageId, conversationId: data.activeId, text, language })
+			});
+			if (!response.ok) {
+				delete sessionTranslation[messageId];
+				return;
+			}
+			const result: { translation: string } = await response.json();
+			sessionTranslation[messageId] = result.translation;
+		} catch {
+			delete sessionTranslation[messageId];
+		}
+	}
+
 	let vocabExtraction: 'idle' | 'loading' | { added: number } | 'error' = $state('idle');
 
 	async function extractVocabulary() {
@@ -126,6 +158,28 @@
 		const id = crypto.randomUUID();
 		chat.sendMessage({ id, role: 'user', parts: [{ type: 'text', text }] });
 		analyzeMessage(id, data.activeId, text);
+	}
+
+	let translatingInput = $state(false);
+
+	async function translateInput() {
+		const text = input.trim();
+		const targetLanguage = data.activeConversation?.targetLanguage;
+		if (!text || !targetLanguage || translatingInput) return;
+
+		translatingInput = true;
+		try {
+			const response = await fetch('/chat/translate-input', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ text, targetLanguage })
+			});
+			if (!response.ok) return;
+			const result: { translation: string } = await response.json();
+			input = result.translation;
+		} finally {
+			translatingInput = false;
+		}
 	}
 
 	let sessionSuggestions: Record<string, string[] | 'loading'> = $state({});
@@ -319,6 +373,8 @@
 						{@const analysisData = analysis && analysis !== 'loading' ? analysis : null}
 						{@const suggestions =
 							message.role === 'assistant' ? sessionSuggestions[message.id] : undefined}
+						{@const translation =
+							message.role === 'assistant' ? translationByMessageId[message.id] : undefined}
 						<div
 							class="flex max-w-[80%] flex-col gap-1"
 							class:items-end={message.role === 'user'}
@@ -358,6 +414,27 @@
 									<SpeakButton {text} language={data.activeConversation?.targetLanguage} />
 								{/if}
 							</div>
+							{#if message.role === 'assistant' && text}
+								<button
+									type="button"
+									onclick={() => toggleTranslation(message.id, text)}
+									class="w-fit text-xs underline"
+									style:color="var(--color-ink-muted)"
+								>
+									{expandedTranslation[message.id] ? 'Ocultar traducción' : 'Traducir'}
+								</button>
+								{#if expandedTranslation[message.id]}
+									{#if translation === 'loading'}
+										<p class="text-xs italic" style:color="var(--color-ink-muted)">
+											Traduciendo...
+										</p>
+									{:else if translation}
+										<p class="text-xs italic" style:color="var(--color-ink-muted)">
+											{translation}
+										</p>
+									{/if}
+								{/if}
+							{/if}
 							{#if analysis === 'loading'}
 								<p class="text-xs italic" style:color="var(--color-ink-muted)">
 									Revisando texto...
@@ -405,6 +482,15 @@
 						style:border-color="var(--color-border)"
 						style:background-color="var(--color-background)"
 					/>
+					<button
+						type="button"
+						onclick={translateInput}
+						disabled={busy || translatingInput || !input.trim()}
+						class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
+						style:border-color="var(--color-border)"
+					>
+						{translatingInput ? 'Traduciendo...' : 'Traducir'}
+					</button>
 					<button
 						type="submit"
 						disabled={busy}
