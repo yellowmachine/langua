@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm';
-import { pgTable, text, timestamp, boolean, index, pgPolicy } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, integer, index, pgPolicy } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -168,5 +168,34 @@ export const chatMessageRelations = relations(chatMessage, ({ one }) => ({
 	conversation: one(chatConversation, {
 		fields: [chatMessage.conversationId],
 		references: [chatConversation.id]
+	})
+}));
+
+export const speakingAttempt = pgTable(
+	'speaking_attempt',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		targetLanguage: text('target_language').notNull(),
+		prompt: text('prompt').notNull(),
+		transcript: text('transcript').notNull(),
+		score: integer('score').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('speaking_attempt_user_idx').on(t.userId),
+		pgPolicy('speaking_attempt_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+export const speakingAttemptRelations = relations(speakingAttempt, ({ one }) => ({
+	user: one(user, {
+		fields: [speakingAttempt.userId],
+		references: [user.id]
 	})
 }));

@@ -54,7 +54,37 @@ services:
     volumes:
       - tts_voices:/data/voices
 
+  stt:
+    image: fedirz/faster-whisper-server:latest-cpu
+    restart: unless-stopped
+    ports:
+      - 5004:8000
+    volumes:
+      - stt_models:/root/.cache/huggingface
+
+  # One-shot: sends a tiny silent clip so the default model is downloaded
+  # and loaded on first start, not on the family's first real recording.
+  stt-warmup:
+    image: curlimages/curl:latest
+    restart: 'no'
+    depends_on:
+      - stt
+    volumes:
+      - ./docker/stt/warmup.wav:/warmup.wav:ro
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        until curl -sf http://stt:8000/health >/dev/null 2>&1; do
+          echo "waiting for stt..."
+          sleep 2
+        done
+        curl -sf -X POST http://stt:8000/v1/audio/transcriptions \
+          -F "file=@/warmup.wav" \
+          -F "model=${STT_MODEL:-Systran/faster-whisper-small}" >/dev/null
+        echo "stt: model warmed up"
+
 volumes:
   pgdata:
   ollama_data:
   tts_voices:
+  stt_models:

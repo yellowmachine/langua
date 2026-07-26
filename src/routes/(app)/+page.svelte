@@ -37,6 +37,13 @@
 			>
 				Chat
 			</a>
+			<a
+				href={resolve('/speak')}
+				class="rounded-md border px-3 py-1.5 text-sm"
+				style:border-color="var(--color-border)"
+			>
+				Hablar
+			</a>
 			{#if data.user.role === 'admin'}
 				<a
 					href={resolve('/family')}
