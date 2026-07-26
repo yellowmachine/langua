@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { fetchSpeechAudio } from '$lib/audio';
+
 	let { text, language }: { text: string; language?: string | null } = $props();
 
 	let status: 'idle' | 'loading' | 'playing' = $state('idle');
@@ -15,17 +17,11 @@
 
 		status = 'loading';
 		try {
-			const response = await fetch('/tts', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ text, language })
-			});
-			if (!response.ok) {
+			audio = (await fetchSpeechAudio(text, language)) ?? undefined;
+			if (!audio) {
 				status = 'idle';
 				return;
 			}
-			const blob = await response.blob();
-			audio = new Audio(URL.createObjectURL(blob));
 			audio.onended = () => (status = 'idle');
 			status = 'playing';
 			await audio.play();

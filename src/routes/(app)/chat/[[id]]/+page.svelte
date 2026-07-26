@@ -5,16 +5,42 @@
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
+	import { fetchSpeechAudio } from '$lib/audio';
 	import { LANGUAGES } from '$lib/languages';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
+	let autoPlay = $state(
+		typeof localStorage !== 'undefined'
+			? localStorage.getItem('langua-chat-autoplay') !== '0'
+			: true
+	);
+
+	function toggleAutoPlay() {
+		autoPlay = !autoPlay;
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('langua-chat-autoplay', autoPlay ? '1' : '0');
+		}
+	}
+
 	let chat = $derived(
 		new Chat({
 			id: data.activeId ?? undefined,
 			messages: data.messages,
-			transport: new DefaultChatTransport({ api: resolve('/chat/api') })
+			transport: new DefaultChatTransport({ api: resolve('/chat/api') }),
+			onFinish: ({ message, isAbort, isError }) => {
+				if (!autoPlay || isAbort || isError) return;
+				const text = message.parts
+					.filter((part) => part.type === 'text')
+					.map((part) => part.text)
+					.join('');
+				if (text) {
+					fetchSpeechAudio(text, data.activeConversation?.targetLanguage).then((audio) =>
+						audio?.play()
+					);
+				}
+			}
 		})
 	);
 
@@ -92,6 +118,26 @@
 		{#if !data.activeId}
 			<p style:color="var(--color-ink-muted)">Crea una conversación para empezar a practicar.</p>
 		{:else}
+			<div class="flex items-center justify-end gap-2 text-sm">
+				<span style:color="var(--color-ink-muted)">Leer respuestas en voz alta</span>
+				<button
+					type="button"
+					role="switch"
+					aria-checked={autoPlay}
+					aria-label="Leer respuestas en voz alta"
+					onclick={toggleAutoPlay}
+					class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
+					style:border-color="var(--color-border)"
+					style:background-color={autoPlay ? 'var(--color-accent)' : 'var(--color-surface)'}
+				>
+					<span
+						class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
+						class:translate-x-4={autoPlay}
+						class:translate-x-0.5={!autoPlay}
+					></span>
+				</button>
+			</div>
+
 			<div class="flex flex-1 flex-col gap-3 overflow-y-auto">
 				{#each chat.messages as message (message.id)}
 					{@const text = message.parts
@@ -152,7 +198,19 @@
 	style:background-color="var(--color-background)"
 	style:color="var(--color-ink)"
 >
-	<form method="POST" action="?/new" use:enhance class="flex flex-col gap-4 p-5">
+	<form
+		method="POST"
+		action="?/new"
+		use:enhance={() => {
+			return async ({ result, update }) => {
+				if (result.type === 'redirect') {
+					newDialog?.close();
+				}
+				await update();
+			};
+		}}
+		class="flex flex-col gap-4 p-5"
+	>
 		<h2 class="text-lg font-semibold">Nueva conversación</h2>
 
 		<label class="flex flex-col gap-1 text-sm">
