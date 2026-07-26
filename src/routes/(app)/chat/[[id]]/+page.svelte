@@ -99,7 +99,7 @@
 							? 'var(--color-surface)'
 							: 'transparent'}
 					>
-						<span class="truncate text-sm">{conversation.title ?? 'Conversación libre'}</span>
+						<span class="line-clamp-3 text-sm">{conversation.title ?? 'Conversación libre'}</span>
 						<span class="truncate text-xs" style:color="var(--color-ink-muted)">
 							{formatDate(conversation.createdAt)}
 						</span>
