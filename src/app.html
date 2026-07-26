@@ -1,9 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<script>
+			(() => {
+				const root = document.documentElement;
+				const theme = localStorage.getItem('langua-theme') ?? 'warm';
+				const dark =
+					localStorage.getItem('langua-dark') === '1' ||
+					(localStorage.getItem('langua-dark') === null &&
+						window.matchMedia('(prefers-color-scheme: dark)').matches);
+				const highContrast = localStorage.getItem('langua-high-contrast') === '1';
+				root.setAttribute('data-theme', theme);
+				root.classList.toggle('dark', dark);
+				root.classList.toggle('high-contrast', highContrast);
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

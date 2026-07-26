@@ -1,3 +1,108 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+@theme {
+	--color-background: var(--langua-bg);
+	--color-surface: var(--langua-ui);
+	--color-accent: var(--langua-accent);
+	--color-ink: var(--langua-ink);
+	--color-ink-muted: var(--langua-ink-muted);
+	--color-border: var(--langua-border);
+}
+
+:root {
+	--langua-bg: #f9f7f4;
+	--langua-ui: #f0ede8;
+	--langua-accent: #7c5c3e;
+	--langua-ink: #2a2420;
+	--langua-ink-muted: #6b6258;
+	--langua-border: #e2ddd4;
+}
+
+:root.dark {
+	--langua-bg: #1a1917;
+	--langua-ui: #141311;
+	--langua-accent: #c4996b;
+	--langua-ink: #f2ede6;
+	--langua-ink-muted: #a89c8e;
+	--langua-border: #2c2822;
+}
+
+:root[data-theme='ocean'] {
+	--langua-bg: #f4f9fb;
+	--langua-ui: #e6f1f5;
+	--langua-accent: #0e7490;
+	--langua-ink: #0f2027;
+	--langua-ink-muted: #55707a;
+	--langua-border: #d3e6ec;
+}
+
+:root[data-theme='ocean'].dark {
+	--langua-bg: #0b1a20;
+	--langua-ui: #0f2530;
+	--langua-accent: #22d3ee;
+	--langua-ink: #e7f6fa;
+	--langua-ink-muted: #8fb4bf;
+	--langua-border: #163541;
+}
+
+:root[data-theme='forest'] {
+	--langua-bg: #f5f8f3;
+	--langua-ui: #e8f0e3;
+	--langua-accent: #3f7d3a;
+	--langua-ink: #182619;
+	--langua-ink-muted: #5c6f57;
+	--langua-border: #d9e6d3;
+}
+
+:root[data-theme='forest'].dark {
+	--langua-bg: #131a10;
+	--langua-ui: #182219;
+	--langua-accent: #7bc96f;
+	--langua-ink: #e9f3e6;
+	--langua-ink-muted: #93a68e;
+	--langua-border: #223020;
+}
+
+:root[data-theme='slate'] {
+	--langua-bg: #f6f7f8;
+	--langua-ui: #eceef1;
+	--langua-accent: #475569;
+	--langua-ink: #1a202c;
+	--langua-ink-muted: #64748b;
+	--langua-border: #dde1e6;
+}
+
+:root[data-theme='slate'].dark {
+	--langua-bg: #15181c;
+	--langua-ui: #1c2127;
+	--langua-accent: #94a3b8;
+	--langua-ink: #eef1f5;
+	--langua-ink-muted: #8b95a3;
+	--langua-border: #262c34;
+}
+
+/* Alto contraste WCAG: independiente del tema/paleta elegidos. */
+:root.high-contrast {
+	--langua-bg: #ffffff;
+	--langua-ui: #ffffff;
+	--langua-accent: #0000ee;
+	--langua-ink: #000000;
+	--langua-ink-muted: #000000;
+	--langua-border: #000000;
+}
+
+:root.high-contrast.dark {
+	--langua-bg: #000000;
+	--langua-ui: #000000;
+	--langua-accent: #ffff00;
+	--langua-ink: #ffffff;
+	--langua-ink-muted: #ffffff;
+	--langua-border: #ffffff;
+}
+
+body {
+	background-color: var(--color-background);
+	color: var(--color-ink);
+}
