@@ -1,0 +1,1 @@
+ALTER TABLE "vocab_item" ADD COLUMN "extra_examples" jsonb DEFAULT '[]'::jsonb NOT NULL;

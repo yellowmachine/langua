@@ -7,6 +7,7 @@ import {
 	integer,
 	jsonb,
 	index,
+	uniqueIndex,
 	pgPolicy
 } from 'drizzle-orm/pg-core';
 import type { HighlightError } from '$lib/textHighlight';
@@ -220,5 +221,48 @@ export const listeningAttemptRelations = relations(listeningAttempt, ({ one }) =
 	user: one(user, {
 		fields: [listeningAttempt.userId],
 		references: [user.id]
+	})
+}));
+
+export const vocabItem = pgTable(
+	'vocab_item',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		targetLanguage: text('target_language').notNull(),
+		lemma: text('lemma').notNull(),
+		word: text('word').notNull(),
+		partOfSpeech: text('part_of_speech', {
+			enum: ['noun', 'verb', 'adjective', 'adverb', 'other']
+		}).notNull(),
+		translation: text('translation').notNull(),
+		exampleSentence: text('example_sentence').notNull(),
+		extraExamples: jsonb('extra_examples').$type<string[]>().default([]).notNull(),
+		// Kept even if the source conversation is deleted, so the study book survives it.
+		sourceConversationId: text('source_conversation_id').references(() => chatConversation.id, {
+			onDelete: 'set null'
+		}),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('vocab_item_user_idx').on(t.userId),
+		uniqueIndex('vocab_item_user_lang_lemma_idx').on(t.userId, t.targetLanguage, t.lemma),
+		pgPolicy('vocab_item_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+export const vocabItemRelations = relations(vocabItem, ({ one }) => ({
+	user: one(user, {
+		fields: [vocabItem.userId],
+		references: [user.id]
+	}),
+	sourceConversation: one(chatConversation, {
+		fields: [vocabItem.sourceConversationId],
+		references: [chatConversation.id]
 	})
 }));

@@ -74,6 +74,29 @@
 	let sessionAnalysis: Record<string, MessageAnalysis | 'loading'> = $state({});
 	let analysisByMessageId = $derived({ ...data.analysisByMessageId, ...sessionAnalysis });
 
+	let vocabExtraction: 'idle' | 'loading' | { added: number } | 'error' = $state('idle');
+
+	async function extractVocabulary() {
+		if (!data.activeId || vocabExtraction === 'loading') return;
+
+		vocabExtraction = 'loading';
+		try {
+			const response = await fetch('/chat/vocabulary', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ conversationId: data.activeId })
+			});
+			if (!response.ok) {
+				vocabExtraction = 'error';
+				return;
+			}
+			const result: { added: number } = await response.json();
+			vocabExtraction = { added: result.added };
+		} catch {
+			vocabExtraction = 'error';
+		}
+	}
+
 	async function analyzeMessage(messageId: string, conversationId: string, text: string) {
 		const language = data.activeConversation?.targetLanguage;
 		if (!language) return;
@@ -171,6 +194,32 @@
 
 		{#if data.activeId}
 			<div class="flex flex-wrap items-center gap-4">
+				<div class="flex items-center gap-2 text-sm">
+					<button
+						type="button"
+						onclick={extractVocabulary}
+						disabled={vocabExtraction === 'loading'}
+						class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
+						style:border-color="var(--color-border)"
+					>
+						Extraer vocabulario
+					</button>
+					{#if vocabExtraction === 'loading'}
+						<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
+					{:else if vocabExtraction === 'error'}
+						<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
+					{:else if vocabExtraction !== 'idle'}
+						<span class="text-xs" style:color="var(--color-ink-muted)">
+							{vocabExtraction.added > 0
+								? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
+								: 'Sin palabras nuevas'} —
+							<a href={resolve('/study')} class="underline" style:color="var(--color-accent)"
+								>ver libro de estudio</a
+							>
+						</span>
+					{/if}
+				</div>
+
 				<div class="flex items-center gap-2 text-sm">
 					<span style:color="var(--color-ink-muted)">Leer respuestas en voz alta</span>
 					<button
