@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { LANGUAGES } from '$lib/languages';
+	import RecordButton from '$lib/components/RecordButton.svelte';
 	import CorrectionsList from '$lib/components/CorrectionsList.svelte';
 	import type { PageData } from './$types';
 
@@ -12,6 +13,10 @@
 	type Result =
 		'idle' | 'loading' | { corrections: Correction[]; overallFeedback: string | null } | 'error';
 	let result: Result = $state('idle');
+
+	function appendTranscript(transcript: string) {
+		text = text.trim() ? `${text.trim()} ${transcript}` : transcript;
+	}
 
 	async function check() {
 		const trimmed = text.trim();
@@ -36,7 +41,7 @@
 </script>
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
-	<h1 class="text-lg font-semibold">Corregir</h1>
+	<h1 class="text-lg font-semibold">Hablar</h1>
 
 	<label class="flex flex-col gap-1 text-sm">
 		Idioma
@@ -52,10 +57,15 @@
 		</select>
 	</label>
 
+	<div class="flex items-center gap-2">
+		<RecordButton onTranscript={appendTranscript} language={targetLanguage} />
+		<span class="text-sm" style:color="var(--color-ink-muted)">Graba lo que quieras decir</span>
+	</div>
+
 	<textarea
 		bind:value={text}
 		rows="8"
-		placeholder="Escribe aquí tu texto para que lo revise..."
+		placeholder="El texto transcrito aparecerá aquí — puedes editarlo antes de corregir..."
 		class="rounded-md border px-3 py-2 text-sm"
 		style:border-color="var(--color-border)"
 		style:background-color="var(--color-background)"></textarea>
