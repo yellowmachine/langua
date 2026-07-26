@@ -15,6 +15,13 @@
 #
 # Usage:
 #   docker compose -f docker-compose.prod.yml -f docker-compose.prod.amd.yml --env-file .env.prod up -d --build
+#
+# With a real GPU behind it, it's also worth sizing up OLLAMA_MODEL in
+# .env.prod beyond the CPU-friendly default (qwen2.5:1.5b) — e.g. a 16GB
+# card comfortably fits qwen2.5:14b, which gives noticeably more coherent
+# corrections/explanations. Verify actual VRAM first (don't assume from
+# the model name alone — e.g. the RX 7700 XT and 7800 XT share a PCI ID
+# but have 12GB vs. 16GB): `cat /sys/class/drm/card*/device/mem_info_vram_total`.
 
 services:
   ollama:
