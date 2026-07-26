@@ -21,6 +21,7 @@ Thumbs.db
 !.env.example
 !.env.test
 !.env.prod.example
+openrouter.key
 
 # Vite
 vite.config.js.timestamp-*
