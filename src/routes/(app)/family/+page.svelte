@@ -11,7 +11,7 @@
 	}
 </script>
 
-<div class="mx-auto flex min-h-screen max-w-2xl flex-col gap-8 p-6">
+<div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
 	<header>
 		<h1 class="text-xl font-semibold">Familia</h1>
 	</header>
