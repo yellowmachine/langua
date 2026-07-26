@@ -2,8 +2,8 @@ import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { convertToModelMessages, generateId, streamText, type UIMessage } from 'ai';
 import { getChatModel } from '$lib/server/ai/chat';
+import { buildChatSystemPrompt } from '$lib/server/ai/chatSystemPrompt';
 import { chatConversation, chatMessage } from '$lib/server/db/schema';
-import { englishNameForLanguage } from '$lib/languages';
 import type { RequestHandler } from './$types';
 
 function textFromMessage(message: UIMessage): string {
@@ -45,11 +45,7 @@ export const POST: RequestHandler = async (event) => {
 	});
 
 	const model = await getChatModel();
-	const languageName = englishNameForLanguage(conversation.targetLanguage);
-
-	const system = conversation.title
-		? `You are a friendly, patient conversation partner helping the user practice ${languageName}. Keep replies short (2-4 sentences), stay in ${languageName} unless the user switches language, and gently correct significant mistakes. The learner set this focus for the conversation (their own words, possibly in their native language): "${conversation.title}". Steer the conversation towards that focus.`
-		: `You are a friendly, patient conversation partner helping the user practice ${languageName}. Keep replies short (2-4 sentences), stay in ${languageName} unless the user switches language, and gently correct significant mistakes.`;
+	const system = buildChatSystemPrompt(conversation.targetLanguage, conversation.title);
 
 	const result = streamText({
 		model,

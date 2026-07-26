@@ -2,11 +2,13 @@
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
 	import { enhance } from '$app/forms';
+	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import { fetchSpeechAudio } from '$lib/audio';
 	import { LANGUAGES } from '$lib/languages';
+	import { CONVERSATION_TEMPLATES } from '$lib/conversationTemplates';
 	import { buildHighlightSegments, type HighlightError } from '$lib/textHighlight';
 	import type { ActionData, PageData } from './$types';
 
@@ -70,6 +72,25 @@
 	let input = $state('');
 	let busy = $derived(chat.status === 'streaming' || chat.status === 'submitted');
 	let newDialog: HTMLDialogElement | undefined = $state();
+	let newTitle = $state('');
+
+	let startingConversation = false;
+
+	$effect(() => {
+		if (!data.activeId || data.messages.length > 0 || startingConversation) return;
+
+		const conversationId = data.activeId;
+		startingConversation = true;
+		fetch('/chat/start', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ conversationId })
+		})
+			.then(() => invalidateAll())
+			.finally(() => {
+				startingConversation = false;
+			});
+	});
 
 	let sessionAnalysis: Record<string, MessageAnalysis | 'loading'> = $state({});
 	let analysisByMessageId = $derived({ ...data.analysisByMessageId, ...sessionAnalysis });
@@ -239,7 +260,10 @@
 	>
 		<button
 			type="button"
-			onclick={() => newDialog?.showModal()}
+			onclick={() => {
+				newTitle = '';
+				newDialog?.showModal();
+			}}
 			class="rounded-md px-3 py-2 text-sm font-medium text-white"
 			style:background-color="var(--color-accent)"
 		>
@@ -546,12 +570,27 @@
 			</select>
 		</label>
 
+		<div class="flex flex-wrap gap-1.5">
+			{#each CONVERSATION_TEMPLATES as template (template.label)}
+				<button
+					type="button"
+					onclick={() => (newTitle = template.title)}
+					class="rounded-full border border-dashed px-2.5 py-1 text-xs"
+					style:border-color="var(--color-accent)"
+					style:color="var(--color-accent)"
+				>
+					{template.label}
+				</button>
+			{/each}
+		</div>
+
 		<label class="flex flex-col gap-1 text-sm">
 			¿De qué quieres hablar? (opcional)
 			<textarea
 				name="title"
+				bind:value={newTitle}
 				rows="3"
-				placeholder="Ej: practicar verbos modales, hablar de un viaje..."
+				placeholder="Ej: practicar verbos modales, hablar de un viaje... o elige una plantilla arriba"
 				class="rounded-md border px-3 py-2 text-sm"
 				style:border-color="var(--color-border)"
 				style:background-color="var(--color-surface)"></textarea>
