@@ -8,6 +8,7 @@
 		{ href: resolve('/chat'), label: 'Chat' },
 		{ href: resolve('/listen'), label: 'Escuchar' },
 		{ href: resolve('/study'), label: 'Estudio' },
+		{ href: resolve('/translate'), label: 'Traducir' },
 		{ href: resolve('/progress'), label: 'Progreso' },
 		...(user.role === 'admin'
 			? [
