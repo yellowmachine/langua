@@ -1,0 +1,16 @@
+node_modules
+build
+.svelte-kit
+data
+.git
+.env
+.env.*
+!.env.example
+openrouter.key
+.claude
+.husky
+docker
+compose.yaml
+docker-compose.prod.yml
+*.md
+test-results

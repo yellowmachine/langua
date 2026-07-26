@@ -1,10 +1,11 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { ENCRYPTION_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 // API keys (e.g. OpenRouter) are stored encrypted in app_settings rather
 // than in .env, so any admin can configure them from Settings without
 // touching the server. AES-256-GCM, key from ENCRYPTION_KEY.
-const key = Buffer.from(ENCRYPTION_KEY, 'base64');
+if (!env.ENCRYPTION_KEY) throw new Error('ENCRYPTION_KEY is not set');
+const key = Buffer.from(env.ENCRYPTION_KEY, 'base64');
 if (key.length !== 32) {
 	throw new Error(
 		'ENCRYPTION_KEY must be a base64-encoded 32-byte key, e.g. `openssl rand -base64 32`'

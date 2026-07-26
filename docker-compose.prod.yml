@@ -1,0 +1,139 @@
+name: langua-prod
+
+# Full stack for an actual self-hosted deployment (or a "does this really
+# work end to end" test) — as opposed to compose.yaml, which only runs the
+# infra services with host-published ports for `bun run dev`.
+#
+# Usage:
+#   cp .env.prod.example .env.prod   # fill in real secrets
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Only the app's port reaches the host; postgres/ollama/tts/stt are only
+# reachable from inside the compose network.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-langua}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:-langua}
+      APP_DB_USER: ${APP_DB_USER:-langua_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env.prod}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-langua}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    restart: 'no'
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        until ollama list >/dev/null 2>&1; do
+          echo "waiting for ollama..."
+          sleep 2
+        done
+        ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b}
+
+  tts:
+    build: ./docker/tts
+    restart: unless-stopped
+    volumes:
+      - tts_voices:/data/voices
+
+  stt:
+    image: fedirz/faster-whisper-server:latest-cpu
+    restart: unless-stopped
+    volumes:
+      - stt_models:/root/.cache/huggingface
+
+  stt-warmup:
+    image: curlimages/curl:latest
+    restart: 'no'
+    depends_on:
+      - stt
+    volumes:
+      - ./docker/stt/warmup.wav:/warmup.wav:ro
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        until curl -sf http://stt:8000/health >/dev/null 2>&1; do
+          echo "waiting for stt..."
+          sleep 2
+        done
+        curl -sf -X POST http://stt:8000/v1/audio/transcriptions \
+          -F "file=@/warmup.wav" \
+          -F "model=${STT_MODEL:-Systran/faster-whisper-small}" >/dev/null
+        echo "stt: model warmed up"
+
+  # Uses the Dockerfile's `build` stage directly (full install, incl.
+  # drizzle-kit + drizzle/ + src/lib/server/db/schema.ts) instead of the
+  # slim runtime stage, which doesn't carry migration tooling.
+  migrate:
+    build:
+      context: .
+      target: build
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MIGRATION_DATABASE_URL: postgres://${POSTGRES_USER:-langua}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}@postgres:5432/${POSTGRES_DB:-langua}
+    command: ['bun', 'run', 'db:migrate']
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      ollama:
+        condition: service_started
+      tts:
+        condition: service_started
+      stt:
+        condition: service_started
+    environment:
+      PORT: 3000
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      BODY_SIZE_LIMIT: 20M
+      DATABASE_URL: postgres://${APP_DB_USER:-langua_app}:${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env.prod}@postgres:5432/${POSTGRES_DB:-langua}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env.prod (openssl rand -base64 32)}
+      BETTER_AUTH_URL: ${ORIGIN:-http://localhost:3000}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env.prod (openssl rand -base64 32)}
+      OLLAMA_BASE_URL: http://ollama:11434/v1
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+      TTS_BASE_URL: http://tts:5000
+      STT_BASE_URL: http://stt:8000
+      STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
+      AUDIO_CACHE_DIR: /data/audio
+    volumes:
+      - audio_cache:/data/audio
+    ports:
+      - '${APP_PORT:-3000}:3000'
+
+volumes:
+  pgdata:
+  ollama_data:
+  tts_voices:
+  stt_models:
+  audio_cache:

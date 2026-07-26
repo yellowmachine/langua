@@ -131,3 +131,30 @@ del tema, pensado para accesibilidad WCAG. Cada miembro elige su propio tema
 6. **Progreso** — dashboard por miembro, rachas, historial.
 7. _(futuro)_ vocabulario con repetición espaciada, backups automáticos,
    proxy con TLS para acceso remoto seguro.
+
+## 8. Despliegue en producción
+
+`compose.yaml` es solo para desarrollo (`bun run dev` + servicios de IA con
+puertos publicados al host). El despliegue real usa dos piezas nuevas:
+
+- `Dockerfile` — build multi-stage con Bun. El stage `build` instala todo
+  (deps + devDeps) y corre `vite build`; el stage `runtime` reinstala solo
+  `dependencies` (`--production --ignore-scripts`) y copia `build/`. Importa:
+  el output de `adapter-node` **no** empaqueta `node_modules` — cualquier
+  paquete que el servidor importe en runtime (`svelte`, `@sveltejs/kit`,
+  `drizzle-orm`, `postgres`...) tiene que estar en `dependencies`, no en
+  `devDependencies`, o el contenedor de producción revienta al arrancar.
+- `docker-compose.prod.yml` — stack completo (`postgres`, `ollama`, `tts`,
+  `stt`, `migrate` uno-shot, `app`) en una red interna; solo el puerto de
+  `app` llega al host. Nombre de proyecto propio (`langua-prod`) y volúmenes
+  separados de `compose.yaml`, para no pisar los datos de desarrollo.
+  Variables en `.env.prod` (plantilla en `.env.prod.example`, sin defaults
+  para secretos — a diferencia de `.env.example`).
+
+Detalle importante de SvelteKit: los secretos (`DATABASE_URL`,
+`BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`...) usan `$env/dynamic/private`, no
+`$env/static/private`. El static se **inlinea en el bundle durante el
+build**, lo que forzaría a hornear los secretos de cada familia dentro de la
+imagen (o a reconstruirla por despliegue). Con dynamic se leen de
+`process.env` en el arranque del contenedor — la misma imagen sirve para
+cualquier familia, solo cambia el `docker-compose.prod.yml`/`.env.prod`.
