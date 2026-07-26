@@ -11,7 +11,16 @@
 	import { LEVELS } from '$lib/levels';
 	import { CONVERSATION_TEMPLATES } from '$lib/conversationTemplates';
 	import { buildHighlightSegments, type HighlightError } from '$lib/textHighlight';
+	import { splitIntoWords } from '$lib/wordTokens';
 	import type { ActionData, PageData } from './$types';
+
+	const WORD_POS_LABELS: Record<string, string> = {
+		noun: 'Sustantivo',
+		verb: 'Verbo',
+		adjective: 'Adjetivo',
+		adverb: 'Adverbio',
+		other: 'Otro'
+	};
 
 	interface MessageAnalysis {
 		errors: HighlightError[];
@@ -232,6 +241,71 @@
 		input = text;
 	}
 
+	type WordLookup =
+		| 'idle'
+		| 'loading'
+		| {
+				word: string;
+				sentence: string;
+				lemma: string;
+				partOfSpeech: string;
+				translation: string;
+				saved: boolean;
+		  }
+		| 'error';
+	let wordLookup: WordLookup = $state('idle');
+
+	async function lookupWord(word: string, sentence: string) {
+		const targetLanguage = data.activeConversation?.targetLanguage;
+		if (!targetLanguage) return;
+
+		wordLookup = 'loading';
+		try {
+			const response = await fetch('/chat/word', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ word, sentence, targetLanguage })
+			});
+			if (!response.ok) {
+				wordLookup = 'error';
+				return;
+			}
+			const result: { lemma: string; partOfSpeech: string; translation: string } =
+				await response.json();
+			wordLookup = { word, sentence, ...result, saved: false };
+		} catch {
+			wordLookup = 'error';
+		}
+	}
+
+	async function saveWord() {
+		if (wordLookup === 'idle' || wordLookup === 'loading' || wordLookup === 'error') return;
+		if (!data.activeId || wordLookup.saved) return;
+		const current = wordLookup;
+
+		try {
+			const response = await fetch('/chat/word', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					conversationId: data.activeId,
+					word: current.word,
+					lemma: current.lemma,
+					partOfSpeech: current.partOfSpeech,
+					translation: current.translation,
+					exampleSentence: current.sentence
+				})
+			});
+			// Only mark saved if the panel is still showing this same lookup
+			// (the learner may have clicked a different word meanwhile).
+			if (response.ok && wordLookup === current) {
+				wordLookup.saved = true;
+			}
+		} catch {
+			// leave it as-is so the learner can retry
+		}
+	}
+
 	function appendTranscript(text: string) {
 		input = input.trim() ? `${input.trim()} ${text}` : text;
 	}
@@ -256,7 +330,7 @@
 
 <div class="flex h-full flex-col">
 	<div
-		class="mx-auto flex w-full max-w-4xl shrink-0 items-center justify-between gap-4 border-b px-6 py-3"
+		class="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between gap-4 border-b px-6 py-3"
 		style:border-color="var(--color-border)"
 	>
 		<button
@@ -342,7 +416,7 @@
 		{/if}
 	</div>
 
-	<div class="mx-auto flex min-h-0 w-full max-w-4xl flex-1 gap-6 p-6">
+	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-6 p-6">
 		<aside class="flex w-48 shrink-0 flex-col overflow-y-auto">
 			<ul class="flex flex-col gap-1">
 				{#each data.conversations as conversation (conversation.id)}
@@ -429,6 +503,25 @@
 												>
 											{:else}
 												{segment.text}
+											{/if}
+										{/each}
+									{:else if message.role === 'assistant'}
+										{#each splitIntoWords(text) as token, i (i)}
+											{#if token.clickable}
+												<button
+													type="button"
+													onclick={() => lookupWord(token.text, text)}
+													class="hover:underline"
+													style:border="none"
+													style:background="transparent"
+													style:padding="0"
+													style:margin="0"
+													style:font="inherit"
+													style:color="inherit"
+													style:cursor="pointer">{token.text}</button
+												>
+											{:else}
+												{token.text}
 											{/if}
 										{/each}
 									{:else}
@@ -527,6 +620,48 @@
 				</form>
 			{/if}
 		</section>
+
+		{#if data.activeId}
+			<aside
+				class="flex w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l pl-4"
+				style:border-color="var(--color-border)"
+			>
+				<h2 class="text-sm font-medium" style:color="var(--color-ink-muted)">Palabra</h2>
+				{#if wordLookup === 'idle'}
+					<p class="text-xs" style:color="var(--color-ink-muted)">
+						Haz clic en una palabra de una respuesta del tutor para ver su información.
+					</p>
+				{:else if wordLookup === 'loading'}
+					<p class="text-xs italic" style:color="var(--color-ink-muted)">Analizando...</p>
+				{:else if wordLookup === 'error'}
+					<p class="text-xs" style:color="#f87171">No se pudo analizar la palabra.</p>
+				{:else}
+					<div class="flex flex-col gap-2 text-sm">
+						<div class="flex items-center gap-2">
+							<span class="font-medium">{wordLookup.word}</span>
+							<SpeakButton
+								text={wordLookup.word}
+								language={data.activeConversation?.targetLanguage}
+							/>
+						</div>
+						<span class="text-xs" style:color="var(--color-ink-muted)">
+							{WORD_POS_LABELS[wordLookup.partOfSpeech] ?? wordLookup.partOfSpeech}
+						</span>
+						<p>{wordLookup.translation}</p>
+						<p class="text-xs italic" style:color="var(--color-ink-muted)">{wordLookup.sentence}</p>
+						<button
+							type="button"
+							onclick={saveWord}
+							disabled={wordLookup.saved}
+							class="w-fit rounded-md px-2.5 py-1 text-xs font-medium text-white disabled:opacity-60"
+							style:background-color="var(--color-accent)"
+						>
+							{wordLookup.saved ? 'Añadida al libro de estudio' : 'Añadir al libro de estudio'}
+						</button>
+					</div>
+				{/if}
+			</aside>
+		{/if}
 	</div>
 </div>
 
