@@ -54,26 +54,27 @@
 	let busy = $derived(chat.status === 'streaming' || chat.status === 'submitted');
 	let newDialog: HTMLDialogElement | undefined = $state();
 
-	let analysisByMessageId: Record<string, MessageAnalysis | 'loading'> = $state({});
+	let sessionAnalysis: Record<string, MessageAnalysis | 'loading'> = $state({});
+	let analysisByMessageId = $derived({ ...data.analysisByMessageId, ...sessionAnalysis });
 
-	async function analyzeMessage(messageId: string, text: string) {
+	async function analyzeMessage(messageId: string, conversationId: string, text: string) {
 		const language = data.activeConversation?.targetLanguage;
 		if (!language) return;
 
-		analysisByMessageId[messageId] = 'loading';
+		sessionAnalysis[messageId] = 'loading';
 		try {
 			const response = await fetch('/chat/analyze', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ text, language })
+				body: JSON.stringify({ messageId, conversationId, text, language })
 			});
 			if (!response.ok) {
-				delete analysisByMessageId[messageId];
+				delete sessionAnalysis[messageId];
 				return;
 			}
-			analysisByMessageId[messageId] = await response.json();
+			sessionAnalysis[messageId] = await response.json();
 		} catch {
-			delete analysisByMessageId[messageId];
+			delete sessionAnalysis[messageId];
 		}
 	}
 
@@ -84,7 +85,7 @@
 		input = '';
 		const id = crypto.randomUUID();
 		chat.sendMessage({ id, role: 'user', parts: [{ type: 'text', text }] });
-		analyzeMessage(id, text);
+		analyzeMessage(id, data.activeId, text);
 	}
 
 	function appendTranscript(text: string) {

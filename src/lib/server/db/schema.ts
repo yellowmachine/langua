@@ -9,12 +9,18 @@ import {
 	index,
 	pgPolicy
 } from 'drizzle-orm/pg-core';
+import type { HighlightError } from '$lib/textHighlight';
 
 export type ListeningQuestionResult = {
 	question: string;
 	options: string[];
 	correctIndex: number;
 	selectedIndex: number;
+};
+
+export type ChatMessageAnalysis = {
+	errors: HighlightError[];
+	explanation: string | null;
 };
 
 export const user = pgTable('user', {
@@ -155,6 +161,7 @@ export const chatMessage = pgTable(
 			.references(() => chatConversation.id, { onDelete: 'cascade' }),
 		role: text('role', { enum: ['user', 'assistant'] }).notNull(),
 		content: text('content').notNull(),
+		analysis: jsonb('analysis').$type<ChatMessageAnalysis>(),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(t) => [

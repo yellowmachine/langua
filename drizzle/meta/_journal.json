@@ -43,6 +43,13 @@
       "when": 1785058446183,
       "tag": "0005_magical_puppet_master",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785062216390,
+      "tag": "0006_loose_rumiko_fujikawa",
+      "breakpoints": true
     }
   ]
 }

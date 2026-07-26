@@ -31,12 +31,15 @@ export const POST: RequestHandler = async (event) => {
 			.where(eq(chatConversation.id, id));
 		if (!row) error(404, 'Conversation not found');
 
-		await tx.insert(chatMessage).values({
-			id: crypto.randomUUID(),
-			conversationId: id,
-			role: 'user',
-			content: textFromMessage(lastMessage)
-		});
+		await tx
+			.insert(chatMessage)
+			.values({
+				id: lastMessage.id,
+				conversationId: id,
+				role: 'user',
+				content: textFromMessage(lastMessage)
+			})
+			.onConflictDoNothing({ target: chatMessage.id });
 
 		return row;
 	});

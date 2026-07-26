@@ -23,7 +23,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const rows = activeId
 		? await locals.withRLS((tx) =>
 				tx
-					.select({ id: chatMessage.id, role: chatMessage.role, content: chatMessage.content })
+					.select({
+						id: chatMessage.id,
+						role: chatMessage.role,
+						content: chatMessage.content,
+						analysis: chatMessage.analysis
+					})
 					.from(chatMessage)
 					.where(eq(chatMessage.conversationId, activeId))
 					.orderBy(asc(chatMessage.createdAt))
@@ -38,7 +43,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			id: row.id,
 			role: row.role,
 			parts: [{ type: 'text' as const, text: row.content }]
-		}))
+		})),
+		analysisByMessageId: Object.fromEntries(
+			rows.filter((row) => row.analysis).map((row) => [row.id, row.analysis!])
+		)
 	};
 };
 
