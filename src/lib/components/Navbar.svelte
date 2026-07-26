@@ -9,6 +9,7 @@
 		{ href: resolve('/listen'), label: 'Escuchar' },
 		{ href: resolve('/study'), label: 'Estudio' },
 		{ href: resolve('/translate'), label: 'Traducir' },
+		{ href: resolve('/correct'), label: 'Corregir' },
 		{ href: resolve('/progress'), label: 'Progreso' },
 		...(user.role === 'admin'
 			? [
