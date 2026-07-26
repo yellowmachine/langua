@@ -33,8 +33,8 @@
 	}
 </script>
 
-<div class="mx-auto flex min-h-screen max-w-4xl gap-6 p-6">
-	<aside class="flex w-48 shrink-0 flex-col gap-3">
+<div class="mx-auto flex h-full max-w-4xl gap-6 p-6">
+	<aside class="flex w-48 shrink-0 flex-col gap-3 overflow-y-auto">
 		<form method="POST" action="?/new" use:enhance>
 			<button
 				type="submit"
@@ -62,7 +62,7 @@
 		</ul>
 	</aside>
 
-	<section class="flex flex-1 flex-col gap-4">
+	<section class="flex min-h-0 flex-1 flex-col gap-4">
 		{#if !data.activeId}
 			<p style:color="var(--color-ink-muted)">Crea una conversación para empezar a practicar.</p>
 		{:else}

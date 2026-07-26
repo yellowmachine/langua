@@ -6,5 +6,9 @@
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
 </script>
 
-<Navbar user={data.user} />
-{@render children()}
+<div class="flex h-dvh flex-col">
+	<Navbar user={data.user} />
+	<main class="min-h-0 flex-1">
+		{@render children()}
+	</main>
+</div>
