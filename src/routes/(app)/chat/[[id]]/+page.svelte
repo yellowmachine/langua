@@ -94,7 +94,7 @@
 				<li class="flex items-center gap-1">
 					<a
 						href={resolve(`/chat/${conversation.id}`)}
-						class="flex flex-1 flex-col gap-0.5 rounded-md px-2 py-1.5"
+						class="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md px-2 py-1.5"
 						style:background-color={conversation.id === data.activeId
 							? 'var(--color-surface)'
 							: 'transparent'}
