@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { LANGUAGES } from '$lib/languages';
 	import CorrectionsList from '$lib/components/CorrectionsList.svelte';
+	import SentenceAnalysis from '$lib/components/SentenceAnalysis.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -9,8 +10,24 @@
 	let text = $state('');
 
 	type Correction = { original: string; correction: string; explanation: string };
+	type StyleAnalysis = {
+		register: 'very_informal' | 'informal' | 'neutral' | 'formal' | 'very_formal';
+		registerNotes: string;
+		naturalness:
+			'native_sounding' | 'mostly_natural' | 'somewhat_stilted' | 'clearly_translated_sounding';
+		naturalnessNotes: string;
+		cefrLevel: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+		cefrNotes: string;
+	};
 	type Result =
-		'idle' | 'loading' | { corrections: Correction[]; overallFeedback: string | null } | 'error';
+		| 'idle'
+		| 'loading'
+		| {
+				corrections: Correction[];
+				overallFeedback: string | null;
+				styleAnalysis: StyleAnalysis;
+		  }
+		| 'error';
 	let result: Result = $state('idle');
 
 	async function check() {
@@ -22,7 +39,7 @@
 			const response = await fetch('/correct/api', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ text: trimmed, targetLanguage })
+				body: JSON.stringify({ text: trimmed, targetLanguage, includeStyleAnalysis: true })
 			});
 			if (!response.ok) {
 				result = 'error';
@@ -73,6 +90,7 @@
 	{#if result === 'error'}
 		<p class="text-sm" style:color="#f87171">No se pudo revisar el texto.</p>
 	{:else if result !== 'idle' && result !== 'loading'}
+		<SentenceAnalysis analysis={result.styleAnalysis} />
 		<CorrectionsList corrections={result.corrections} overallFeedback={result.overallFeedback} />
 	{/if}
 </div>
