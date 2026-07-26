@@ -77,7 +77,35 @@ local (`./data/audio`), indexado por hash de `(texto, voz, idioma)`.
 - `progress_daily` — minutos practicados, racha, xp por usuario/día
 - (fase posterior) `vocab_items` para repaso espaciado (SRS)
 
-## 5. UI/UX — temas y accesibilidad
+## 5. Seguridad de datos: Row-Level Security
+
+Convención para toda tabla con datos propios de un miembro (conversaciones de
+chat, intentos de listening/speaking, progreso, vocabulario...), inspirada en
+cómo lo resuelve Scholio:
+
+- La app se conecta a Postgres con un rol **sin privilegios de superusuario
+  ni de owner de las tablas** (`APP_DB_USER`/`langua_app`, creado en
+  `scripts/init.sh`). Esto importa porque RLS se ignora silenciosamente para
+  superusers y para el owner de la tabla — sin este rol separado, las
+  políticas no harían nada.
+- Las migraciones (que crean tablas y políticas) siguen corriendo con el
+  superusuario, vía `MIGRATION_DATABASE_URL` — separado de `DATABASE_URL`
+  (el que usa la app en marcha).
+- Cada tabla de contenido por-usuario se define con `.enableRLS()` +
+  `pgPolicy(...)` en el schema de Drizzle (no a mano en SQL), usando
+  `current_setting('app.current_user_id', true)` como condición.
+- `hooks.server.ts` expone `event.locals.withRLS(fn)`: abre una transacción,
+  hace `SELECT set_config('app.current_user_id', userId, true)` (scoped a esa
+  transacción) y ejecuta `fn` dentro. Cualquier query sobre una tabla con RLS
+  debe pasar por `locals.withRLS(...)`, no por el `db` importado directo.
+
+Así, aunque el código de la app se olvide un `WHERE userId = ...`, Postgres
+bloquea las filas ajenas — defensa en profundidad, no solo disciplina en el
+código. Las tablas propias de better-auth (`user`, `session`, `account`,
+`verification`) quedan **sin RLS**: la app necesita verlas completas para que
+la autenticación funcione, y no pasan por `withRLS`.
+
+## 6. UI/UX — temas y accesibilidad
 
 Patrón inspirado en Scholio: **selector de paletas con swatch claro/oscuro
 por tema** (`data-theme` + clase `dark`, persistido en `localStorage` y
@@ -85,7 +113,7 @@ sincronizado a la cuenta) más un **toggle de alto contraste** independiente
 del tema, pensado para accesibilidad WCAG. Cada miembro elige su propio tema
 — se guarda por usuario.
 
-## 6. Fases de construcción
+## 7. Fases de construcción
 
 0. **Fundaciones** — schema `users` + `app_settings`, better-auth + Drizzle
    adapter, layout base, selector de tema + alto contraste, `postgres` en
