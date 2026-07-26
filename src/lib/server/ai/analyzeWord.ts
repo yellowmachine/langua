@@ -10,6 +10,11 @@ export const wordAnalysisSchema = z.object({
 		.string()
 		.describe(
 			'Translation into the native language of this specific word form as used in the sentence'
+		),
+	explanation: z
+		.string()
+		.describe(
+			"Brief explanation, in the learner's native language, of what this word means and how it's being used in this specific sentence (e.g. disambiguating from other senses/conjugations)"
 		)
 });
 
@@ -33,7 +38,7 @@ export async function analyzeWord(
 
 "${sentence}"
 
-Analyze that specific word as used in this sentence (not just any dictionary sense). Return its dictionary/base form (lemma, lowercase), its part of speech, and its translation into ${nativeName} — matching the specific form/conjugation/meaning it has in this sentence.`
+Analyze that specific word as used in this sentence (not just any dictionary sense). Return its dictionary/base form (lemma, lowercase), its part of speech, its translation into ${nativeName} — matching the specific form/conjugation/meaning it has in this sentence — and a brief explanation in ${nativeName} of what it means and how it's functioning here.`
 	});
 
 	return object;

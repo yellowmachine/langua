@@ -11,7 +11,7 @@
 	import { LEVELS } from '$lib/levels';
 	import { CONVERSATION_TEMPLATES } from '$lib/conversationTemplates';
 	import { buildHighlightSegments, type HighlightError } from '$lib/textHighlight';
-	import { splitIntoWords } from '$lib/wordTokens';
+	import { splitIntoWords, sentenceContaining } from '$lib/wordTokens';
 	import type { ActionData, PageData } from './$types';
 
 	const WORD_POS_LABELS: Record<string, string> = {
@@ -250,6 +250,7 @@
 				lemma: string;
 				partOfSpeech: string;
 				translation: string;
+				explanation: string;
 				saved: boolean;
 		  }
 		| 'error';
@@ -270,8 +271,12 @@
 				wordLookup = 'error';
 				return;
 			}
-			const result: { lemma: string; partOfSpeech: string; translation: string } =
-				await response.json();
+			const result: {
+				lemma: string;
+				partOfSpeech: string;
+				translation: string;
+				explanation: string;
+			} = await response.json();
 			wordLookup = { word, sentence, ...result, saved: false };
 		} catch {
 			wordLookup = 'error';
@@ -510,7 +515,8 @@
 											{#if token.clickable}
 												<button
 													type="button"
-													onclick={() => lookupWord(token.text, text)}
+													onclick={() =>
+														lookupWord(token.text, sentenceContaining(text, token.start))}
 													class="hover:underline"
 													style:border="none"
 													style:background="transparent"
@@ -648,6 +654,7 @@
 							{WORD_POS_LABELS[wordLookup.partOfSpeech] ?? wordLookup.partOfSpeech}
 						</span>
 						<p>{wordLookup.translation}</p>
+						<p class="text-xs" style:color="var(--color-ink-muted)">{wordLookup.explanation}</p>
 						<p class="text-xs italic" style:color="var(--color-ink-muted)">{wordLookup.sentence}</p>
 						<button
 							type="button"
