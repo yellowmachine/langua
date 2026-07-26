@@ -1,5 +1,21 @@
 import { relations, sql } from 'drizzle-orm';
-import { pgTable, text, timestamp, boolean, integer, index, pgPolicy } from 'drizzle-orm/pg-core';
+import {
+	pgTable,
+	text,
+	timestamp,
+	boolean,
+	integer,
+	jsonb,
+	index,
+	pgPolicy
+} from 'drizzle-orm/pg-core';
+
+export type ListeningQuestionResult = {
+	question: string;
+	options: string[];
+	correctIndex: number;
+	selectedIndex: number;
+};
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -196,6 +212,35 @@ export const speakingAttempt = pgTable(
 export const speakingAttemptRelations = relations(speakingAttempt, ({ one }) => ({
 	user: one(user, {
 		fields: [speakingAttempt.userId],
+		references: [user.id]
+	})
+}));
+
+export const listeningAttempt = pgTable(
+	'listening_attempt',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		targetLanguage: text('target_language').notNull(),
+		passage: text('passage').notNull(),
+		questions: jsonb('questions').$type<ListeningQuestionResult[]>().notNull(),
+		score: integer('score').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('listening_attempt_user_idx').on(t.userId),
+		pgPolicy('listening_attempt_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+export const listeningAttemptRelations = relations(listeningAttempt, ({ one }) => ({
+	user: one(user, {
+		fields: [listeningAttempt.userId],
 		references: [user.id]
 	})
 }));

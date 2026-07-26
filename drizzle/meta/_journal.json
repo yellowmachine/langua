@@ -29,6 +29,13 @@
       "when": 1785054875089,
       "tag": "0003_silly_jetstream",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785055598939,
+      "tag": "0004_furry_hellfire_club",
+      "breakpoints": true
     }
   ]
 }

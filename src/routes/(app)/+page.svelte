@@ -44,6 +44,13 @@
 			>
 				Hablar
 			</a>
+			<a
+				href={resolve('/listen')}
+				class="rounded-md border px-3 py-1.5 text-sm"
+				style:border-color="var(--color-border)"
+			>
+				Escuchar
+			</a>
 			{#if data.user.role === 'admin'}
 				<a
 					href={resolve('/family')}

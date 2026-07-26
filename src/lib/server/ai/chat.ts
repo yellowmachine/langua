@@ -18,14 +18,20 @@ export async function getChatModel() {
 		const openrouter = createOpenAICompatible({
 			name: 'openrouter',
 			baseURL: 'https://openrouter.ai/api/v1',
-			apiKey
+			apiKey,
+			// Needed for generateObject (e.g. the Escuchar module) to send a
+			// real json_schema constraint instead of hoping the model free-forms
+			// valid JSON — without this, small/local models routinely produce
+			// structurally invalid output.
+			supportsStructuredOutputs: true
 		});
 		return openrouter(OPENROUTER_MODEL);
 	}
 
 	const ollama = createOpenAICompatible({
 		name: 'ollama',
-		baseURL: OLLAMA_BASE_URL
+		baseURL: OLLAMA_BASE_URL,
+		supportsStructuredOutputs: true
 	});
 	return ollama(OLLAMA_MODEL);
 }

@@ -60,7 +60,8 @@
 		"@ai-sdk/openai-compatible": "^3.0.14",
 		"@ai-sdk/svelte": "^5.0.37",
 		"ai": "^7.0.37",
-		"better-auth": "^1.6.25"
+		"better-auth": "^1.6.25",
+		"zod": "^4.4.3"
 	},
 	"lint-staged": {
 		"*.{ts,js,svelte}": [
