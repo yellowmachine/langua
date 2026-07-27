@@ -21,27 +21,25 @@ export const actions: Actions = {
 
 		const data = await event.request.formData();
 		const apiKey = String(data.get('apiKey') ?? '').trim();
-		if (!apiKey) return fail(400, { message: 'Introduce una API key.' });
-
-		await setEncryptedSetting(SETTINGS_KEYS.OPENROUTER_API_KEY, apiKey);
-	},
-
-	clear: async (event) => {
-		if (event.locals.user?.role !== 'admin') return fail(403);
-		await setEncryptedSetting(SETTINGS_KEYS.OPENROUTER_API_KEY, null);
-		await setAiMode('local');
-	},
-
-	setMode: async (event) => {
-		if (event.locals.user?.role !== 'admin') return fail(403);
-
-		const data = await event.request.formData();
+		const deleteKey = data.get('deleteKey') === 'on';
 		const mode = data.get('mode');
+
+		if (deleteKey) {
+			await setEncryptedSetting(SETTINGS_KEYS.OPENROUTER_API_KEY, null);
+			await setAiMode('local');
+			return;
+		}
+
+		// Blank field = leave the currently saved key untouched, don't wipe it.
+		if (apiKey) {
+			await setEncryptedSetting(SETTINGS_KEYS.OPENROUTER_API_KEY, apiKey);
+		}
+
 		if (mode !== 'local' && mode !== 'cloud') return fail(400, { message: 'Modo inválido.' });
 
 		if (mode === 'cloud') {
-			const apiKey = await getEncryptedSetting(SETTINGS_KEYS.OPENROUTER_API_KEY);
-			if (!apiKey) {
+			const currentKey = await getEncryptedSetting(SETTINGS_KEYS.OPENROUTER_API_KEY);
+			if (!currentKey) {
 				return fail(400, { message: 'Guarda una API key antes de activar el modo cloud.' });
 			}
 		}

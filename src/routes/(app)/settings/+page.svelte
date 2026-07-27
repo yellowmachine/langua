@@ -31,15 +31,22 @@
 		<form method="POST" action="?/save" use:enhance class="flex flex-col gap-3">
 			<label class="flex flex-col gap-1 text-sm">
 				API key de OpenRouter
-				<input
-					name="apiKey"
-					type="password"
-					autocomplete="off"
-					placeholder={data.hasOpenRouterKey ? '•••••••••••••• (ya configurada)' : 'sk-or-...'}
-					class="rounded-md border px-3 py-2"
-					style:border-color="var(--color-border)"
-					style:background-color="var(--color-background)"
-				/>
+				<div class="flex items-center gap-2">
+					<input
+						name="apiKey"
+						type="password"
+						autocomplete="off"
+						placeholder={data.hasOpenRouterKey ? '•••••••••••••• (ya configurada)' : 'sk-or-...'}
+						class="flex-1 rounded-md border px-3 py-2"
+						style:border-color="var(--color-border)"
+						style:background-color="var(--color-background)"
+					/>
+					{#if data.hasOpenRouterKey}
+						<button type="submit" name="deleteKey" value="on" class="text-sm text-red-600">
+							Eliminar
+						</button>
+					{/if}
+				</div>
 			</label>
 
 			<fieldset class="flex flex-col gap-1 text-sm">
@@ -68,33 +75,13 @@
 				<p class="text-sm text-red-600">{form.message}</p>
 			{/if}
 
-			<div class="flex gap-2">
-				<button
-					type="submit"
-					class="rounded-md px-3 py-2 text-sm font-medium text-white"
-					style:background-color="var(--color-accent)"
-				>
-					Guardar
-				</button>
-				<button
-					type="submit"
-					formaction="?/setMode"
-					class="rounded-md border px-3 py-2 text-sm"
-					style:border-color="var(--color-border)"
-				>
-					Guardar modo
-				</button>
-				{#if data.hasOpenRouterKey}
-					<button
-						type="submit"
-						formaction="?/clear"
-						class="rounded-md border px-3 py-2 text-sm"
-						style:border-color="var(--color-border)"
-					>
-						Quitar y volver a local
-					</button>
-				{/if}
-			</div>
+			<button
+				type="submit"
+				class="w-fit rounded-md px-3 py-2 text-sm font-medium text-white"
+				style:background-color="var(--color-accent)"
+			>
+				Guardar
+			</button>
 		</form>
 	</section>
 </div>
