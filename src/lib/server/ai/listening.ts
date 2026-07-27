@@ -26,14 +26,14 @@ export async function generateListeningExercise(
 	const languageName = englishNameForLanguage(targetLanguage);
 	const model = await getChatModel();
 
-	const passageDescription = exerciseType
-		? exerciseType
-		: 'something one might plausibly hear in daily life';
+	const typeInstruction = exerciseType
+		? ` The learner asked for this kind of passage (their own words, possibly in their native language): "${exerciseType}".`
+		: '';
 
 	const { object } = await generateObject({
 		model,
 		schema: listeningExerciseSchema,
-		prompt: `Write a short listening comprehension exercise in ${languageName}: a natural 2-4 sentence passage (${passageDescription}), followed by exactly 3 multiple-choice comprehension questions about it. Each question must have exactly 3 options in ${languageName}, with exactly one correct. Keep the passage and all questions/options in ${languageName}. ${levelInstruction(level ?? null)}`
+		prompt: `Write a short listening comprehension exercise in ${languageName}: a natural 2-4 sentence passage (something one might plausibly hear in daily life), followed by exactly 3 multiple-choice comprehension questions about it.${typeInstruction} Each question must have exactly 3 options in ${languageName}, with exactly one correct. Keep the passage and all questions/options in ${languageName}. ${levelInstruction(level ?? null)}`
 	});
 
 	return object;

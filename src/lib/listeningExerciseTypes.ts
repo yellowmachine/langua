@@ -1,29 +1,11 @@
-/** Curated listening exercise styles. `description` feeds the AI prompt; `code`/`label` drive the UI. */
-export const LISTENING_EXERCISE_TYPES: { code: string; label: string; description: string }[] = [
+/** Curated listening exercise styles: quick-fill suggestions for the free-text exercise type field. */
+export const LISTENING_EXERCISE_TYPES: { label: string; prompt: string }[] = [
+	{ label: 'Diálogo cotidiano', prompt: 'un diálogo cotidiano entre dos personas' },
 	{
-		code: 'dialogue',
-		label: 'Diálogo cotidiano',
-		description: 'a short spoken exchange between two people having an everyday conversation'
-	},
-	{
-		code: 'announcement',
 		label: 'Anuncio por megafonía',
-		description:
-			'a public announcement one might hear over a loudspeaker, e.g. at a train station, airport, or shop'
+		prompt: 'un anuncio por megafonía, como en una estación, aeropuerto o tienda'
 	},
-	{
-		code: 'phone_call',
-		label: 'Llamada telefónica',
-		description: 'a phone conversation or a voicemail message'
-	},
-	{
-		code: 'news',
-		label: 'Noticia breve',
-		description: 'a short radio or news-style report on an everyday topic'
-	},
-	{
-		code: 'instructions',
-		label: 'Instrucciones',
-		description: 'someone giving step-by-step instructions or directions'
-	}
+	{ label: 'Llamada telefónica', prompt: 'una llamada telefónica o un mensaje de voz' },
+	{ label: 'Noticia breve', prompt: 'una breve noticia de radio sobre un tema cotidiano' },
+	{ label: 'Instrucciones', prompt: 'alguien dando instrucciones paso a paso' }
 ];

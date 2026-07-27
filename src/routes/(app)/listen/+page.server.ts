@@ -4,7 +4,6 @@ import { generateListeningExercise } from '$lib/server/ai/listening';
 import { listeningAttempt, type ListeningQuestionResult } from '$lib/server/db/schema';
 import { LANGUAGES } from '$lib/languages';
 import { LEVELS } from '$lib/levels';
-import { LISTENING_EXERCISE_TYPES } from '$lib/listeningExerciseTypes';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -30,7 +29,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const targetLanguage = String(data.get('targetLanguage') ?? '');
 		const level = String(data.get('level') ?? '');
-		const exerciseType = String(data.get('exerciseType') ?? '');
+		const exerciseType = String(data.get('exerciseType') ?? '').trim();
 
 		if (!LANGUAGES.some((lang) => lang.code === targetLanguage)) {
 			return fail(400, { message: 'Idioma inválido.' });
@@ -38,12 +37,8 @@ export const actions: Actions = {
 		if (!LEVELS.some((lvl) => lvl.code === level)) {
 			return fail(400, { message: 'Nivel inválido.' });
 		}
-		const type = exerciseType
-			? LISTENING_EXERCISE_TYPES.find((t) => t.code === exerciseType)
-			: undefined;
-		if (exerciseType && !type) return fail(400, { message: 'Tipo de ejercicio inválido.' });
 
-		return await generateListeningExercise(targetLanguage, level, type?.description);
+		return await generateListeningExercise(targetLanguage, level, exerciseType || undefined);
 	},
 
 	submit: async (event) => {

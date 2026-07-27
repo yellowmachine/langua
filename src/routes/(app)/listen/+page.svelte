@@ -93,22 +93,6 @@
 				</select>
 			</label>
 
-			<label class="flex flex-col gap-1 text-sm">
-				Tipo
-				<select
-					bind:value={exerciseType}
-					name="exerciseType"
-					class="rounded-md border px-3 py-2"
-					style:border-color="var(--color-border)"
-					style:background-color="var(--color-background)"
-				>
-					<option value="">Cualquiera</option>
-					{#each LISTENING_EXERCISE_TYPES as type (type.code)}
-						<option value={type.code}>{type.label}</option>
-					{/each}
-				</select>
-			</label>
-
 			<button
 				type="submit"
 				disabled={generating || submitting}
@@ -117,6 +101,33 @@
 			>
 				{generating ? 'Generando...' : exercise ? 'Otro ejercicio' : 'Nuevo ejercicio'}
 			</button>
+
+			<div class="flex w-full flex-wrap gap-1.5">
+				{#each LISTENING_EXERCISE_TYPES as type (type.label)}
+					<button
+						type="button"
+						onclick={() => (exerciseType = type.prompt)}
+						class="rounded-full border border-dashed px-2.5 py-1 text-xs"
+						style:border-color="var(--color-accent)"
+						style:color="var(--color-accent)"
+					>
+						{type.label}
+					</button>
+				{/each}
+			</div>
+
+			<label class="flex w-full flex-col gap-1 text-sm">
+				Tipo de ejercicio (opcional)
+				<input
+					bind:value={exerciseType}
+					name="exerciseType"
+					type="text"
+					placeholder="Cualquiera"
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				/>
+			</label>
 		</form>
 
 		{#if exercise}
