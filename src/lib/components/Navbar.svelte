@@ -12,12 +12,7 @@
 		{ href: resolve('/correct'), label: 'Corregir' },
 		{ href: resolve('/speak'), label: 'Hablar' },
 		{ href: resolve('/progress'), label: 'Progreso' },
-		...(user.role === 'admin'
-			? [
-					{ href: resolve('/family'), label: 'Familia' },
-					{ href: resolve('/settings'), label: 'Ajustes' }
-				]
-			: [])
+		...(user.role === 'admin' ? [{ href: resolve('/settings'), label: 'Ajustes' }] : [])
 	]);
 
 	function isActive(href: string) {
