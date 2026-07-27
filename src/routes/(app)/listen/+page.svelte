@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
+	import { LANGUAGES } from '$lib/languages';
+	import { LEVELS } from '$lib/levels';
+	import { LISTENING_EXERCISE_TYPES } from '$lib/listeningExerciseTypes';
 	import type { PageData } from './$types';
 
 	type Question = { question: string; options: string[]; correctIndex: number };
@@ -8,7 +11,11 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let exercise = $state<{ passage: string; questions: Question[] } | null>(null);
+	let targetLanguage = $state(data.user.targetLanguage ?? LANGUAGES[0].code);
+	let level = $state<(typeof LEVELS)[number]['code']>('beginner');
+	let exerciseType = $state('');
+
+	let exercise = $state<{ passage: string; questions: Question[]; language: string } | null>(null);
 	let selected = $state<number[]>([]);
 	let generating = $state(false);
 	let submitting = $state(false);
@@ -46,12 +53,62 @@
 				return async ({ result: actionResult }) => {
 					generating = false;
 					if (actionResult.type === 'success' && actionResult.data) {
-						exercise = actionResult.data as { passage: string; questions: Question[] };
+						exercise = {
+							...(actionResult.data as { passage: string; questions: Question[] }),
+							language: targetLanguage
+						};
 						selected = exercise.questions.map(() => -1);
 					}
 				};
 			}}
+			class="flex flex-wrap items-end gap-3"
 		>
+			<label class="flex flex-col gap-1 text-sm">
+				Idioma
+				<select
+					bind:value={targetLanguage}
+					name="targetLanguage"
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					{#each LANGUAGES as lang (lang.code)}
+						<option value={lang.code}>{lang.label}</option>
+					{/each}
+				</select>
+			</label>
+
+			<label class="flex flex-col gap-1 text-sm">
+				Nivel
+				<select
+					bind:value={level}
+					name="level"
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					{#each LEVELS as lvl (lvl.code)}
+						<option value={lvl.code}>{lvl.label}</option>
+					{/each}
+				</select>
+			</label>
+
+			<label class="flex flex-col gap-1 text-sm">
+				Tipo
+				<select
+					bind:value={exerciseType}
+					name="exerciseType"
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					<option value="">Cualquiera</option>
+					{#each LISTENING_EXERCISE_TYPES as type (type.code)}
+						<option value={type.code}>{type.label}</option>
+					{/each}
+				</select>
+			</label>
+
 			<button
 				type="submit"
 				disabled={generating || submitting}
@@ -64,7 +121,7 @@
 
 		{#if exercise}
 			<div class="flex items-center gap-2">
-				<SpeakButton text={exercise.passage} language={data.user.targetLanguage} />
+				<SpeakButton text={exercise.passage} language={exercise.language} />
 				<span class="text-sm" style:color="var(--color-ink-muted)">Escucha el audio</span>
 			</div>
 
@@ -85,6 +142,7 @@
 				<input type="hidden" name="passage" value={exercise.passage} />
 				<input type="hidden" name="questions" value={JSON.stringify(exercise.questions)} />
 				<input type="hidden" name="answers" value={JSON.stringify(selected)} />
+				<input type="hidden" name="targetLanguage" value={exercise.language} />
 
 				{#each exercise.questions as question, qi (qi)}
 					<fieldset class="flex flex-col gap-1.5">

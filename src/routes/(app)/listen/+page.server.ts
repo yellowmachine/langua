@@ -2,6 +2,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import { desc } from 'drizzle-orm';
 import { generateListeningExercise } from '$lib/server/ai/listening';
 import { listeningAttempt, type ListeningQuestionResult } from '$lib/server/db/schema';
+import { LANGUAGES } from '$lib/languages';
+import { LEVELS } from '$lib/levels';
+import { LISTENING_EXERCISE_TYPES } from '$lib/listeningExerciseTypes';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -21,9 +24,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	newExercise: async ({ locals }) => {
+	newExercise: async ({ request, locals }) => {
 		if (!locals.user) redirect(303, '/login');
-		return await generateListeningExercise(locals.user.targetLanguage);
+
+		const data = await request.formData();
+		const targetLanguage = String(data.get('targetLanguage') ?? '');
+		const level = String(data.get('level') ?? '');
+		const exerciseType = String(data.get('exerciseType') ?? '');
+
+		if (!LANGUAGES.some((lang) => lang.code === targetLanguage)) {
+			return fail(400, { message: 'Idioma inválido.' });
+		}
+		if (!LEVELS.some((lvl) => lvl.code === level)) {
+			return fail(400, { message: 'Nivel inválido.' });
+		}
+		const type = exerciseType
+			? LISTENING_EXERCISE_TYPES.find((t) => t.code === exerciseType)
+			: undefined;
+		if (exerciseType && !type) return fail(400, { message: 'Tipo de ejercicio inválido.' });
+
+		return await generateListeningExercise(targetLanguage, level, type?.description);
 	},
 
 	submit: async (event) => {
@@ -31,6 +51,8 @@ export const actions: Actions = {
 
 		const data = await event.request.formData();
 		const passage = String(data.get('passage') ?? '');
+		const targetLanguage =
+			String(data.get('targetLanguage') ?? '') || event.locals.user.targetLanguage;
 
 		let questions: Array<{ question: string; options: string[]; correctIndex: number }>;
 		let answers: number[];
@@ -56,7 +78,7 @@ export const actions: Actions = {
 			tx.insert(listeningAttempt).values({
 				id: crypto.randomUUID(),
 				userId: event.locals.user!.id,
-				targetLanguage: event.locals.user!.targetLanguage ?? 'en',
+				targetLanguage: targetLanguage ?? 'en',
 				passage,
 				questions: graded,
 				score
