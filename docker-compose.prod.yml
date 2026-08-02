@@ -11,8 +11,18 @@ name: langua-prod
 # Only the app's port reaches the host; postgres/ollama/tts/stt are only
 # reachable from inside the compose network.
 #
+# Ollama (local LLM fallback for chat) is gated behind the `local-ai` Compose
+# profile — it's the one service here heavy enough (2-4GB+ RAM just to load
+# a small model) to matter on a modest VPS. STT/TTS stay always-on: they're
+# CPU-only and lightweight (faster-whisper-small, Piper) and have no cloud
+# fallback implemented yet. Add `--profile local-ai` to the `up` command (or
+# set COMPOSE_PROFILES=local-ai in .env.prod) to run Ollama too; without it,
+# configure an OpenRouter key in Settings after first deploy so chat has a
+# provider to talk to.
+#
 # On a box with a dedicated AMD GPU, layer docker-compose.prod.amd.yml on
-# top to run Ollama on ROCm instead of the CPU — see that file for usage.
+# top to run Ollama on ROCm instead of the CPU — see that file for usage
+# (still needs the local-ai profile enabled).
 
 services:
   postgres:
@@ -36,12 +46,14 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    profiles: ['local-ai']
     volumes:
       - ollama_data:/root/.ollama
 
   ollama-pull:
     image: ollama/ollama:latest
     restart: 'no'
+    profiles: ['local-ai']
     depends_on:
       - ollama
     environment:
@@ -109,8 +121,6 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      ollama:
-        condition: service_started
       tts:
         condition: service_started
       stt:
@@ -123,6 +133,9 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env.prod (openssl rand -base64 32)}
       BETTER_AUTH_URL: ${ORIGIN:-http://localhost:3000}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env.prod (openssl rand -base64 32)}
+      # Only reachable if the `local-ai` profile is enabled; harmless
+      # otherwise since chat falls back here only when no OpenRouter key/
+      # cloud mode is configured in Settings.
       OLLAMA_BASE_URL: http://ollama:11434/v1
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
       TTS_BASE_URL: http://tts:5000
