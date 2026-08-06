@@ -17,8 +17,10 @@ name: langua-prod
 # `docker login ghcr.io` on the deploy host first (a classic PAT with
 # `read:packages` works as the password).
 #
-# Only the app's port reaches the host; postgres/ollama/tts/stt are only
-# reachable from inside the compose network.
+# No service publishes a host port — a reverse proxy (e.g. Dokploy/Traefik)
+# is expected to sit in front and reach `app` over the compose network on
+# its container port (3000, see PORT below). Point the proxy's domain at
+# service `app`, port 3000.
 #
 # Ollama (local LLM fallback for chat) is gated behind the `local-ai` Compose
 # profile — it's the one service here heavy enough (2-4GB+ RAM just to load
@@ -153,8 +155,6 @@ services:
       AUDIO_CACHE_DIR: /data/audio
     volumes:
       - audio_cache:/data/audio
-    ports:
-      - '${APP_PORT:-3000}:3000'
 
 volumes:
   pgdata:
