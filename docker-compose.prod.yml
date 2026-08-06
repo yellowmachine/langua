@@ -6,7 +6,16 @@ name: langua-prod
 #
 # Usage:
 #   cp .env.prod.example .env.prod   # fill in real secrets
-#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# `app` and `migrate` both pull the same prebuilt image from GHCR instead
+# of building locally — .github/workflows/docker-build.yml builds and
+# pushes it on every push to main (tagged `latest`) and on `v*` tags
+# (tagged with the version). Set APP_IMAGE_TAG in .env.prod to pin a
+# specific tag/sha instead of `latest`. If the GHCR package is private,
+# `docker login ghcr.io` on the deploy host first (a classic PAT with
+# `read:packages` works as the password).
 #
 # Only the app's port reaches the host; postgres/ollama/tts/stt are only
 # reachable from inside the compose network.
@@ -98,23 +107,23 @@ services:
           -F "model=${STT_MODEL:-Systran/faster-whisper-small}" >/dev/null
         echo "stt: model warmed up"
 
-  # Uses the Dockerfile's `build` stage directly (full install, incl.
-  # drizzle-kit + drizzle/ + src/lib/server/db/schema.ts) instead of the
-  # slim runtime stage, which doesn't carry migration tooling.
+  # Runs on the same GHCR image as `app` (see db:migrate:prod / scripts/
+  # migrate.ts) but as its own step, connected as POSTGRES_USER — the
+  # superuser/table owner, needed because RLS policies don't apply to
+  # them. `app` connects as the restricted APP_DB_USER instead so RLS is
+  # actually enforced at runtime; it never sees these credentials.
   migrate:
-    build:
-      context: .
-      target: build
+    image: ghcr.io/yellowmachine/langua:${APP_IMAGE_TAG:-latest}
     restart: 'no'
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       MIGRATION_DATABASE_URL: postgres://${POSTGRES_USER:-langua}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}@postgres:5432/${POSTGRES_DB:-langua}
-    command: ['bun', 'run', 'db:migrate']
+    command: ['bun', 'run', 'db:migrate:prod']
 
   app:
-    build: .
+    image: ghcr.io/yellowmachine/langua:${APP_IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres:

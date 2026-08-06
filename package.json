@@ -19,6 +19,7 @@
 		"db:push": "drizzle-kit push",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
+		"db:migrate:prod": "bun run scripts/migrate.ts",
 		"db:studio": "drizzle-kit studio",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.cli.ts --output src/lib/server/db/schema.ts --yes"
 	},

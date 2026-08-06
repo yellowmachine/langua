@@ -28,6 +28,11 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
 COPY --from=build /app/build ./build
+# For `bun run db:migrate:prod` (drizzle-orm's programmatic migrator) —
+# lets the migrate service in docker-compose.prod.yml run off this same
+# image instead of needing the build stage's drizzle-kit.
+COPY drizzle ./drizzle
+COPY scripts/migrate.ts ./scripts/migrate.ts
 
 EXPOSE 3000
 CMD ["bun", "build/index.js"]
