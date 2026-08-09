@@ -114,8 +114,12 @@ services:
   # superuser/table owner, needed because RLS policies don't apply to
   # them. `app` connects as the restricted APP_DB_USER instead so RLS is
   # actually enforced at runtime; it never sees these credentials.
+  # pull_policy: always — the deploy webhook just re-runs `up -d`, which
+  # otherwise reuses whatever image already sits under the `latest` tag
+  # locally instead of checking GHCR for a newer one.
   migrate:
     image: ghcr.io/yellowmachine/langua:${APP_IMAGE_TAG:-latest}
+    pull_policy: always
     restart: 'no'
     depends_on:
       postgres:
@@ -126,6 +130,7 @@ services:
 
   app:
     image: ghcr.io/yellowmachine/langua:${APP_IMAGE_TAG:-latest}
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       postgres:
