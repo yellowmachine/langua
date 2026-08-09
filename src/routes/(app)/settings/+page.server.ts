@@ -102,5 +102,38 @@ export const actions: Actions = {
 		}
 
 		await setAiMode(mode);
+	},
+
+	resetMemberPassword: async (event) => {
+		if (event.locals.user?.role !== 'admin') {
+			return fail(403, {
+				formId: 'resetMemberPassword',
+				message: 'Solo el administrador puede cambiar contraseñas.'
+			});
+		}
+
+		const data = await event.request.formData();
+		const userId = String(data.get('userId') ?? '');
+		const newPassword = String(data.get('newPassword') ?? '');
+
+		if (!userId || !newPassword) {
+			return fail(400, {
+				formId: 'resetMemberPassword',
+				message: 'Elige un miembro y una contraseña nueva.'
+			});
+		}
+
+		if (newPassword.length < 8) {
+			return fail(400, {
+				formId: 'resetMemberPassword',
+				message: 'La contraseña debe tener al menos 8 caracteres.'
+			});
+		}
+
+		const ctx = await auth.$context;
+		const hashedPassword = await ctx.password.hash(newPassword);
+		await ctx.internalAdapter.updatePassword(userId, hashedPassword);
+
+		return { formId: 'resetMemberPassword', success: true };
 	}
 };

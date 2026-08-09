@@ -118,6 +118,59 @@
 		style:border-color="var(--color-border)"
 		style:background-color="var(--color-surface)"
 	>
+		<h2 class="mb-3 text-sm font-medium">Restablecer contraseña</h2>
+		<form method="POST" action="?/resetMemberPassword" use:enhance class="flex flex-col gap-4">
+			<label class="flex flex-col gap-1 text-sm">
+				Miembro
+				<select
+					name="userId"
+					required
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					{#each data.members as member (member.id)}
+						<option value={member.id}>{member.name} (@{member.username})</option>
+					{/each}
+				</select>
+			</label>
+
+			<label class="flex flex-col gap-1 text-sm">
+				Nueva contraseña
+				<input
+					name="newPassword"
+					type="password"
+					autocomplete="new-password"
+					required
+					minlength="8"
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				/>
+			</label>
+
+			{#if form?.formId === 'resetMemberPassword' && form.message}
+				<p class="text-sm text-red-600">{form.message}</p>
+			{/if}
+			{#if form?.formId === 'resetMemberPassword' && form.success}
+				<p class="text-sm" style:color="var(--color-accent)">Contraseña actualizada.</p>
+			{/if}
+
+			<button
+				type="submit"
+				class="self-start rounded-md px-3 py-2 text-sm font-medium text-white"
+				style:background-color="var(--color-accent)"
+			>
+				Cambiar contraseña
+			</button>
+		</form>
+	</section>
+
+	<section
+		class="rounded-lg border p-4"
+		style:border-color="var(--color-border)"
+		style:background-color="var(--color-surface)"
+	>
 		<h2 class="mb-1 text-sm font-medium">Chat con IA</h2>
 		<p class="mb-3 text-sm" style:color="var(--color-ink-muted)">
 			{#if data.aiMode === 'cloud'}
