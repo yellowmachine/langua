@@ -14,6 +14,10 @@ worker.addEventListener('install', (event) => {
 	async function addFilesToCache() {
 		const cache = await caches.open(CACHE);
 		await cache.addAll(ASSETS);
+		// Activate this version immediately instead of waiting for every open
+		// tab to close — otherwise a tab left open across a deploy keeps
+		// running the previous service worker indefinitely.
+		await worker.skipWaiting();
 	}
 	event.waitUntil(addFilesToCache());
 });
@@ -23,6 +27,10 @@ worker.addEventListener('activate', (event) => {
 		for (const key of await caches.keys()) {
 			if (key !== CACHE) await caches.delete(key);
 		}
+		// Take control of already-open tabs right away, pairing with
+		// skipWaiting() above so a deploy doesn't need every tab reloaded
+		// twice (once to get the new worker, once more for it to take over).
+		await worker.clients.claim();
 	}
 	event.waitUntil(deleteOldCaches());
 });
