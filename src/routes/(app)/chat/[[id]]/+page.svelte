@@ -55,6 +55,9 @@
 		}
 	}
 
+	let conversationsOpen = $state(false);
+	let wordPanelOpen = $state(false);
+
 	let chat = $derived(
 		new Chat({
 			id: data.activeId ?? undefined,
@@ -338,17 +341,36 @@
 		class="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between gap-4 border-b px-6 py-3"
 		style:border-color="var(--color-border)"
 	>
-		<button
-			type="button"
-			onclick={() => {
-				newTitle = '';
-				newDialog?.showModal();
-			}}
-			class="rounded-md px-3 py-2 text-sm font-medium text-white"
-			style:background-color="var(--color-accent)"
-		>
-			Nueva conversación
-		</button>
+		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				onclick={() => {
+					newTitle = '';
+					newDialog?.showModal();
+				}}
+				class="rounded-md px-3 py-2 text-sm font-medium text-white"
+				style:background-color="var(--color-accent)"
+			>
+				Nueva conversación
+			</button>
+
+			<button
+				type="button"
+				onclick={() => (conversationsOpen = true)}
+				aria-label="Ver conversaciones"
+				class="rounded-md border p-2 sm:hidden"
+				style:border-color="var(--color-border)"
+			>
+				<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
+					<path
+						stroke="currentColor"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						d="M4 6h16M4 12h16M4 18h10"
+					/>
+				</svg>
+			</button>
+		</div>
 
 		{#if data.activeId}
 			<div class="flex flex-wrap items-center gap-4">
@@ -417,19 +439,79 @@
 						></span>
 					</button>
 				</div>
+
+				<button
+					type="button"
+					onclick={() => (wordPanelOpen = true)}
+					aria-label="Ver panel de palabra"
+					class="rounded-md border p-2 sm:hidden"
+					style:border-color="var(--color-border)"
+				>
+					<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
+						<path
+							stroke="currentColor"
+							stroke-width="1.8"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z"
+						/>
+					</svg>
+				</button>
 			</div>
 		{/if}
 	</div>
 
-	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 p-6 sm:flex-row">
+	{#if conversationsOpen}
+		<button
+			type="button"
+			aria-label="Cerrar"
+			onclick={() => (conversationsOpen = false)}
+			class="fixed inset-0 z-30 bg-black/40 sm:hidden"
+		></button>
+	{/if}
+
+	{#if wordPanelOpen}
+		<button
+			type="button"
+			aria-label="Cerrar"
+			onclick={() => (wordPanelOpen = false)}
+			class="fixed inset-0 z-30 bg-black/40 sm:hidden"
+		></button>
+	{/if}
+
+	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-6 p-6 sm:flex-row">
 		<aside
-			class="order-2 flex max-h-48 w-full shrink-0 flex-col overflow-y-auto sm:order-none sm:max-h-none sm:w-48"
+			class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-2 overflow-y-auto border-r p-4 shadow-xl sm:static sm:z-auto sm:flex sm:w-48 sm:max-w-none sm:gap-1 sm:border-0 sm:p-0 sm:shadow-none"
+			style:border-color="var(--color-border)"
+			style:background-color="var(--color-background)"
+			class:hidden={!conversationsOpen}
+			class:flex={conversationsOpen}
 		>
+			<div class="mb-2 flex items-center justify-between sm:hidden">
+				<h2 class="text-sm font-medium" style:color="var(--color-ink-muted)">Conversaciones</h2>
+				<button
+					type="button"
+					onclick={() => (conversationsOpen = false)}
+					aria-label="Cerrar"
+					class="rounded-md p-1"
+				>
+					<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
+						<path
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							d="M6 6l12 12M18 6L6 18"
+						/>
+					</svg>
+				</button>
+			</div>
+
 			<ul class="flex flex-col gap-1">
 				{#each data.conversations as conversation (conversation.id)}
 					<li class="flex items-center gap-1">
 						<a
 							href={resolve(`/chat/${conversation.id}`)}
+							onclick={() => (conversationsOpen = false)}
 							class="flex min-w-0 flex-1 flex-col gap-0.5 rounded-md px-2 py-1.5"
 							style:background-color={conversation.id === data.activeId
 								? 'var(--color-surface)'
@@ -464,7 +546,7 @@
 			</ul>
 		</aside>
 
-		<section class="order-1 flex min-h-0 flex-1 flex-col gap-4 sm:order-none">
+		<section class="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
 			{#if !data.activeId}
 				<p style:color="var(--color-ink-muted)">Crea una conversación para empezar a practicar.</p>
 			{:else}
@@ -488,7 +570,7 @@
 						>
 							<div class="flex items-end gap-1.5">
 								<div
-									class="rounded-lg px-3 py-2 text-sm"
+									class="min-w-0 rounded-lg px-3 py-2 text-sm break-words"
 									style:background-color={message.role === 'user'
 										? 'var(--color-accent)'
 										: 'var(--color-surface)'}
@@ -631,10 +713,30 @@
 
 		{#if data.activeId}
 			<aside
-				class="order-3 flex w-full shrink-0 flex-col gap-3 overflow-y-auto border-t pt-4 sm:order-none sm:w-72 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-4"
+				class="fixed inset-y-0 right-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-3 overflow-y-auto border-l p-4 shadow-xl sm:static sm:z-auto sm:flex sm:max-w-none sm:border-t-0 sm:p-0 sm:pl-4 sm:shadow-none"
 				style:border-color="var(--color-border)"
+				style:background-color="var(--color-background)"
+				class:hidden={!wordPanelOpen}
+				class:flex={wordPanelOpen}
 			>
-				<h2 class="text-sm font-medium" style:color="var(--color-ink-muted)">Palabra</h2>
+				<div class="flex items-center justify-between">
+					<h2 class="text-sm font-medium" style:color="var(--color-ink-muted)">Palabra</h2>
+					<button
+						type="button"
+						onclick={() => (wordPanelOpen = false)}
+						aria-label="Cerrar"
+						class="rounded-md p-1 sm:hidden"
+					>
+						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
+							<path
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								d="M6 6l12 12M18 6L6 18"
+							/>
+						</svg>
+					</button>
+				</div>
 				{#if wordLookup === 'idle'}
 					<p class="text-xs" style:color="var(--color-ink-muted)">
 						Haz clic en una palabra de una respuesta del tutor para ver su información.
