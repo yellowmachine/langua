@@ -54,3 +54,21 @@ jobs:
       - name: Trigger Dokploy redeploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: curl -fsSL -X POST "${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_URL }}"
+
+      - name: Notify Slack on successful deploy
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          curl --silent --show-error -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"✅ *Deployed to production* · \`${{ github.ref_name }}\` @ \`${{ github.sha }}\`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver en GitHub Actions>\"}"
+
+  notify-failure:
+    needs: build-and-push
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Slack on workflow failure
+        run: |
+          curl --silent --show-error -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"text\":\"🔴 *Build failed* · \`${{ github.repository }}\` · branch \`${{ github.ref_name }}\`\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Ver en GitHub Actions>\"}"
