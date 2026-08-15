@@ -77,7 +77,16 @@ jobs:
 
       - name: Trigger Dokploy redeploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: curl -fsSL -X POST "${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_URL }}"
+        run: |
+          status=$(curl -sS -o /tmp/dokploy-response.txt -w '%{http_code}' \
+            -X POST "${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_URL }}")
+          echo "HTTP status: $status"
+          echo "Response body:"
+          cat /tmp/dokploy-response.txt
+          if [ "$status" -ge 400 ]; then
+            echo "::error::Dokploy webhook returned HTTP $status"
+            exit 1
+          fi
 
       - name: Notify Slack on successful deploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
