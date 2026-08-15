@@ -42,6 +42,7 @@ jobs:
             type=sha
 
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -50,6 +51,29 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Dokploy's `pull_policy: always` only helps if `:latest` on GHCR already
+      # points at the image we just pushed. Firing the webhook immediately can
+      # race GHCR's tag propagation and pull the previous image instead — wait
+      # here until `:latest` resolves to our digest before triggering deploy.
+      - name: Wait for GHCR latest tag to reflect pushed digest
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          image="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          target="${{ steps.build.outputs.digest }}"
+          echo "Waiting for $image:latest to resolve to $target"
+          for i in $(seq 1 30); do
+            current=$(docker buildx imagetools inspect "$image:latest" 2>/dev/null \
+              | awk '/^Name:/ { sub(/.*@/, "", $2); print $2 }')
+            if [ "$current" = "$target" ]; then
+              echo "Matched after $i attempt(s): $current"
+              exit 0
+            fi
+            echo "Attempt $i/30: latest is '$current', want '$target' — retrying in 5s"
+            sleep 5
+          done
+          echo "::error::Timed out waiting for $image:latest to reflect $target"
+          exit 1
 
       - name: Trigger Dokploy redeploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
