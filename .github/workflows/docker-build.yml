@@ -75,15 +75,24 @@ jobs:
           echo "::error::Timed out waiting for $image:latest to reflect $target"
           exit 1
 
+      # Dokploy's webhook endpoint is the same one its native GitHub
+      # integration calls on every push — it only recognizes the request as
+      # a real deploy trigger (vs "Branch Not Match") if it carries GitHub's
+      # own event header + a ref in the body. Without these it silently
+      # returns 301 and deploys nothing, which `curl -f` doesn't treat as a
+      # failure (only >=400 does) — so this was a no-op for months.
       - name: Trigger Dokploy redeploy
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           status=$(curl -sS -o /tmp/dokploy-response.txt -w '%{http_code}' \
-            -X POST "${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_URL }}")
+            -X POST "${{ secrets.DOKPLOY_DEPLOY_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -H "x-github-event: push" \
+            -d "{\"ref\": \"refs/heads/${{ github.ref_name }}\", \"commits\": []}")
           echo "HTTP status: $status"
           echo "Response body:"
           cat /tmp/dokploy-response.txt
-          if [ "$status" -ge 400 ]; then
+          if [ "$status" != "200" ]; then
             echo "::error::Dokploy webhook returned HTTP $status"
             exit 1
           fi
