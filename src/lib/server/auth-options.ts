@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { username } from 'better-auth/plugins';
+import { twoFactor, username } from 'better-auth/plugins';
 import * as schema from './db/schema';
 
 type Db = Parameters<typeof drizzleAdapter>[0];
@@ -57,6 +57,9 @@ export function createAuthOptions(params: {
 				}
 			}
 		},
-		plugins: [username(), ...(params.plugins ?? [])]
+		// TOTP 2FA, opt-in per user from /account. Backup codes are generated
+		// on enable so a lost phone doesn't lock anyone out; an admin can also
+		// reset a member's 2FA from /settings.
+		plugins: [username(), twoFactor({ issuer: 'Langua' }), ...(params.plugins ?? [])]
 	} satisfies BetterAuthOptions;
 }
