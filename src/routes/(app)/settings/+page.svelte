@@ -5,6 +5,8 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
+	let twoFactorMembers = $derived(data.members.filter((member) => member.twoFactorEnabled));
+
 	function languageLabel(code: string | null) {
 		if (!code) return 'sin idioma configurado todavía';
 		return LANGUAGES.find((lang) => lang.code === code)?.label ?? code;
@@ -164,6 +166,57 @@
 				Cambiar contraseña
 			</button>
 		</form>
+	</section>
+
+	<section
+		class="rounded-lg border p-4"
+		style:border-color="var(--color-border)"
+		style:background-color="var(--color-surface)"
+	>
+		<h2 class="mb-1 text-sm font-medium">Desactivar verificación en dos pasos</h2>
+		<p class="mb-3 text-sm" style:color="var(--color-ink-muted)">
+			Para un miembro que ha perdido el móvil y sus códigos de recuperación. Podrá entrar solo con
+			su contraseña y volver a configurarla desde Mi cuenta.
+		</p>
+		{#if twoFactorMembers.length === 0}
+			<p class="text-sm" style:color="var(--color-ink-muted)">
+				Ningún miembro tiene la verificación en dos pasos activada.
+			</p>
+		{:else}
+			<form method="POST" action="?/resetMemberTwoFactor" use:enhance class="flex flex-col gap-4">
+				<label class="flex flex-col gap-1 text-sm">
+					Miembro
+					<select
+						name="userId"
+						required
+						class="rounded-md border px-3 py-2"
+						style:border-color="var(--color-border)"
+						style:background-color="var(--color-background)"
+					>
+						{#each twoFactorMembers as member (member.id)}
+							<option value={member.id}>{member.name} (@{member.username})</option>
+						{/each}
+					</select>
+				</label>
+
+				{#if form?.formId === 'resetMemberTwoFactor' && form.message}
+					<p class="text-sm text-red-600">{form.message}</p>
+				{/if}
+
+				<button
+					type="submit"
+					class="self-start rounded-md px-3 py-2 text-sm font-medium text-white"
+					style:background-color="#dc2626"
+				>
+					Desactivar
+				</button>
+			</form>
+		{/if}
+		{#if form?.formId === 'resetMemberTwoFactor' && form.success}
+			<p class="mt-3 text-sm" style:color="var(--color-accent)">
+				Verificación en dos pasos desactivada.
+			</p>
+		{/if}
 	</section>
 
 	<section

@@ -85,6 +85,13 @@
       "when": 1785081833575,
       "tag": "0011_gorgeous_wither",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791040896976,
+      "tag": "0012_outstanding_dazzler",
+      "breakpoints": true
     }
   ]
 }

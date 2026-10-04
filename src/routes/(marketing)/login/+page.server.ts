@@ -22,8 +22,9 @@ export const actions: Actions = {
 			return fail(400, { message: 'Introduce usuario y contraseña.' });
 		}
 
+		let result;
 		try {
-			await auth.api.signInUsername({
+			result = await auth.api.signInUsername({
 				body: { username, password },
 				headers: event.request.headers
 			});
@@ -33,6 +34,10 @@ export const actions: Actions = {
 			}
 			throw error;
 		}
+
+		// 2FA enabled: no session yet, only a short-lived two_factor cookie
+		// that /login/2fa trades for one once the code checks out.
+		if (result && 'twoFactorRedirect' in result) redirect(303, '/login/2fa');
 
 		redirect(303, '/dashboard');
 	}

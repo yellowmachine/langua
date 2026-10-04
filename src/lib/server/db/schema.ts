@@ -47,7 +47,8 @@ export const user = pgTable('user', {
 	targetLanguage: text('target_language'),
 	theme: text('theme').default('warm'),
 	dark: boolean('dark').default(false),
-	highContrast: boolean('high_contrast').default(false)
+	highContrast: boolean('high_contrast').default(false),
+	twoFactorEnabled: boolean('two_factor_enabled').default(false)
 });
 
 export const session = pgTable(
@@ -109,9 +110,38 @@ export const verification = pgTable(
 	(table) => [index('verification_identifier_idx').on(table.identifier)]
 );
 
+// better-auth twoFactor plugin: TOTP secret + backup codes, both encrypted
+// with BETTER_AUTH_SECRET. One row per user with 2FA set up.
+export const twoFactor = pgTable(
+	'two_factor',
+	{
+		id: text('id').primaryKey(),
+		secret: text('secret').notNull(),
+		backupCodes: text('backup_codes').notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		verified: boolean('verified').default(true),
+		failedVerificationCount: integer('failed_verification_count').default(0),
+		lockedUntil: timestamp('locked_until')
+	},
+	(table) => [
+		index('twoFactor_secret_idx').on(table.secret),
+		index('twoFactor_userId_idx').on(table.userId)
+	]
+);
+
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),
-	accounts: many(account)
+	accounts: many(account),
+	twoFactors: many(twoFactor)
+}));
+
+export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
+	user: one(user, {
+		fields: [twoFactor.userId],
+		references: [user.id]
+	})
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({

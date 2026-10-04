@@ -87,6 +87,17 @@ services:
   stt:
     image: fedirz/faster-whisper-server:latest-cpu
     restart: unless-stopped
+    # Without an explicit compute type faster-whisper runs the model as
+    # float32 on CPU (~1.2GB for small). int8 roughly halves that with
+    # negligible accuracy loss and is usually faster on CPU. The memory
+    # limit keeps a runaway STT from OOM-ing the whole shared VPS.
+    environment:
+      WHISPER__MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
+      WHISPER__COMPUTE_TYPE: int8
+    deploy:
+      resources:
+        limits:
+          memory: 1G
     volumes:
       - stt_models:/root/.cache/huggingface
 

@@ -3,7 +3,7 @@ import { asc, eq } from 'drizzle-orm';
 import { APIError } from 'better-auth';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { twoFactor, user } from '$lib/server/db/schema';
 import {
 	getEncryptedSetting,
 	setEncryptedSetting,
@@ -24,7 +24,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				name: user.name,
 				username: user.username,
 				role: user.role,
-				targetLanguage: user.targetLanguage
+				targetLanguage: user.targetLanguage,
+				twoFactorEnabled: user.twoFactorEnabled
 			})
 			.from(user)
 			.orderBy(asc(user.createdAt))
@@ -135,5 +136,30 @@ export const actions: Actions = {
 		await ctx.internalAdapter.updatePassword(userId, hashedPassword);
 
 		return { formId: 'resetMemberPassword', success: true };
+	},
+
+	// Escape hatch for a member who lost both their authenticator and their
+	// backup codes: turns 2FA off so they can sign in with just the password.
+	resetMemberTwoFactor: async (event) => {
+		if (event.locals.user?.role !== 'admin') {
+			return fail(403, {
+				formId: 'resetMemberTwoFactor',
+				message: 'Solo el administrador puede desactivar la verificación en dos pasos.'
+			});
+		}
+
+		const data = await event.request.formData();
+		const userId = String(data.get('userId') ?? '');
+
+		if (!userId) {
+			return fail(400, { formId: 'resetMemberTwoFactor', message: 'Elige un miembro.' });
+		}
+
+		await db.transaction(async (tx) => {
+			await tx.delete(twoFactor).where(eq(twoFactor.userId, userId));
+			await tx.update(user).set({ twoFactorEnabled: false }).where(eq(user.id, userId));
+		});
+
+		return { formId: 'resetMemberTwoFactor', success: true };
 	}
 };
