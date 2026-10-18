@@ -9,7 +9,7 @@
 	import Repeat from '@lucide/svelte/icons/repeat';
 	import SkipBack from '@lucide/svelte/icons/skip-back';
 	import SkipForward from '@lucide/svelte/icons/skip-forward';
-	import SpeakButton from '$lib/components/SpeakButton.svelte';
+	import WordPanel, { type WordLookupResult } from '$lib/components/WordPanel.svelte';
 	import { activeCueIndex, clipOrigin, cueSpan, formatTimestamp } from '$lib/clips';
 	import { LANGUAGES } from '$lib/languages';
 	import { splitIntoWords } from '$lib/wordTokens';
@@ -26,33 +26,16 @@
 	let paused = $state(true);
 	let confirmingDelete = $state(false);
 
-	const WORD_POS_LABELS: Record<string, string> = {
-		noun: 'Sustantivo',
-		verb: 'Verbo',
-		adjective: 'Adjetivo',
-		adverb: 'Adverbio',
-		other: 'Otro'
-	};
-
-	// The phrase the learner clicked: its words become clickable and it can
-	// be translated. Separate from activeIndex, which follows the audio.
+	// The phrase whose timestamp the learner clicked: it can be translated.
+	// Separate from activeIndex, which follows the audio.
 	let selectedIndex: number | null = $state(null);
 	let translations: Record<number, string | 'loading' | 'error'> = $state({});
 
-	type WordLookup =
-		| 'idle'
-		| 'loading'
-		| 'error'
-		| {
-				cueIndex: number;
-				word: string;
-				lemma: string;
-				partOfSpeech: string;
-				translation: string;
-				explanation: string;
-				saved: boolean;
-		  };
-	let wordLookup: WordLookup = $state('idle');
+	// The word clicked in any phrase, shown in the side panel like in the chat.
+	type ClipWordLookup = 'idle' | 'loading' | 'error' | (WordLookupResult & { cueIndex: number });
+	let wordLookup: ClipWordLookup = $state('idle');
+	// Phones only: the word panel is a drawer, opened by clicking a word.
+	let wordPanelOpen = $state(false);
 
 	const PLAYBACK_RATES = [0.5, 0.75, 1];
 
@@ -145,7 +128,6 @@
 	}
 
 	function selectCue(index: number) {
-		if (selectedIndex !== index) wordLookup = 'idle';
 		selectedIndex = index;
 		if (loopIndex !== null) loopIndex = index;
 		playFrom(data.clip.cues[index].start);
@@ -258,6 +240,7 @@
 
 	async function lookupWord(cueIndex: number, word: string) {
 		wordLookup = 'loading';
+		wordPanelOpen = true;
 		try {
 			const response = await fetch(resolve('/(app)/clips/[id]/word', { id: data.clip.id }), {
 				method: 'POST',
@@ -302,214 +285,212 @@
 	}
 </script>
 
-<div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-	<header class="flex flex-col gap-1">
-		<a href={resolve('/clips')} class="text-sm" style:color="var(--color-ink-muted)">← Clips</a>
-		<h1 class="text-xl font-semibold">{clipOrigin(data.clip)}</h1>
-		{#if data.clip.kind === 'episode' && data.clip.series}
-			<p>{data.clip.title}</p>
-		{/if}
-		<p class="text-xs" style:color="var(--color-ink-muted)">
-			{dateFormatter.format(data.clip.capturedAt)} · {languageLabel}
-		</p>
-	</header>
-
-	<!-- Native controls can't be restyled, so the <audio> stays hidden and
-	     the bar below drives it. -->
-	<audio
-		bind:this={audio}
-		bind:currentTime
-		bind:duration
-		bind:paused
-		bind:playbackRate
-		onseeked={stopLoopIfSeekedAway}
-		preload="metadata"
-		src={resolve('/(app)/clips/[id]/audio', { id: data.clip.id })}
-	></audio>
-	{@render player()}
-
-	<section
-		class="flex flex-col gap-1 rounded-lg border p-2"
-		style:border-color="var(--color-border)"
-		style:background-color="var(--color-surface)"
-	>
-		{#if transcribing}
-			<p class="p-2 text-sm" style:color="var(--color-ink-muted)">
-				Transcribiendo… Puede tardar unos minutos; el texto aparecerá aquí solo.
+<div class="mx-auto flex w-full max-w-6xl gap-6 p-6">
+	<div class="flex min-w-0 flex-1 flex-col gap-6">
+		<header class="flex flex-col gap-1">
+			<a href={resolve('/clips')} class="text-sm" style:color="var(--color-ink-muted)">← Clips</a>
+			<h1 class="text-xl font-semibold">{clipOrigin(data.clip)}</h1>
+			{#if data.clip.kind === 'episode' && data.clip.series}
+				<p>{data.clip.title}</p>
+			{/if}
+			<p class="text-xs" style:color="var(--color-ink-muted)">
+				{dateFormatter.format(data.clip.capturedAt)} · {languageLabel}
 			</p>
-		{:else if canRetry}
-			<form
-				method="POST"
-				action="?/retranscribe"
-				use:enhance
-				class="flex flex-wrap items-center gap-3 p-2"
-			>
-				<p class="text-sm text-red-600">
-					{data.clip.transcriptionStatus === 'failed'
-						? 'No se pudo transcribir este clip.'
-						: 'La transcripción se interrumpió.'}
+		</header>
+
+		<!-- Native controls can't be restyled, so the <audio> stays hidden and
+	     the bar below drives it. -->
+		<audio
+			bind:this={audio}
+			bind:currentTime
+			bind:duration
+			bind:paused
+			bind:playbackRate
+			onseeked={stopLoopIfSeekedAway}
+			preload="metadata"
+			src={resolve('/(app)/clips/[id]/audio', { id: data.clip.id })}
+		></audio>
+		{@render player()}
+
+		<section
+			class="flex flex-col gap-1 rounded-lg border p-2"
+			style:border-color="var(--color-border)"
+			style:background-color="var(--color-surface)"
+		>
+			{#if transcribing}
+				<p class="p-2 text-sm" style:color="var(--color-ink-muted)">
+					Transcribiendo… Puede tardar unos minutos; el texto aparecerá aquí solo.
 				</p>
+			{:else if canRetry}
+				<form
+					method="POST"
+					action="?/retranscribe"
+					use:enhance
+					class="flex flex-wrap items-center gap-3 p-2"
+				>
+					<p class="text-sm text-red-600">
+						{data.clip.transcriptionStatus === 'failed'
+							? 'No se pudo transcribir este clip.'
+							: 'La transcripción se interrumpió.'}
+					</p>
+					<button
+						type="submit"
+						class="rounded-md border px-3 py-1.5 text-sm"
+						style:border-color="var(--color-border)"
+					>
+						Reintentar
+					</button>
+				</form>
+			{:else if data.clip.cues.length === 0}
+				<p class="p-2 text-sm" style:color="var(--color-ink-muted)">
+					No se ha encontrado texto en este clip.
+				</p>
+			{:else}
+				{@render practiceControls()}
+				{#if data.clip.translationCues.length > 0 && !listenFirst}
+					<p class="px-2 pt-1 text-xs" style:color="var(--color-ink-muted)">
+						En cursiva, los subtítulos {subtitlesLanguage
+							? `en ${subtitlesLanguage}`
+							: 'en otro idioma'} que venían con el vídeo.
+					</p>
+				{/if}
+				{#each data.clip.cues as cue, i (i)}
+					<div
+						{@attach scrollIntoViewWhen(i === activeIndex)}
+						class="rounded-md transition-colors"
+						style:background-color={i === activeIndex
+							? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
+							: i === selectedIndex
+								? 'var(--color-background)'
+								: 'transparent'}
+						style:box-shadow={i === activeIndex ? 'inset 3px 0 0 var(--color-accent)' : 'none'}
+						style:color={i === activeIndex ? 'var(--color-accent)' : undefined}
+					>
+						{#if listenFirst && !revealed.has(i)}
+							{@render hiddenCue(cue.start, cue.text, i)}
+						{:else}
+							{@render visibleCue(cue.start, cue.text, i)}
+						{/if}
+					</div>
+				{/each}
+			{/if}
+		</section>
+
+		{#if data.clip.language && data.clip.cues.length > 0 && !transcribing && !canRetry}
+			<div class="flex flex-wrap items-center gap-2 text-sm">
+				<button
+					type="button"
+					onclick={extractVocabulary}
+					disabled={vocabExtraction === 'loading'}
+					class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
+					style:border-color="var(--color-border)"
+				>
+					Extraer vocabulario
+				</button>
+				{#if vocabExtraction === 'loading'}
+					<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
+				{:else if vocabExtraction === 'error'}
+					<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
+				{:else if vocabExtraction !== 'idle'}
+					<span class="text-xs" style:color="var(--color-ink-muted)">
+						{vocabExtraction.added > 0
+							? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
+							: 'Sin palabras nuevas'} —
+						<a href={resolve('/study')} class="underline" style:color="var(--color-accent)"
+							>ver libro de estudio</a
+						>
+					</span>
+				{/if}
+			</div>
+		{/if}
+
+		<form method="POST" action="?/delete" use:enhance class="flex items-center gap-3">
+			{#if confirmingDelete}
+				<span class="text-sm">¿Borrar este clip y su audio?</span>
 				<button
 					type="submit"
+					class="rounded-md px-3 py-1.5 text-sm font-medium text-white"
+					style:background-color="#dc2626"
+				>
+					Borrar
+				</button>
+				<button
+					type="button"
+					onclick={() => (confirmingDelete = false)}
 					class="rounded-md border px-3 py-1.5 text-sm"
 					style:border-color="var(--color-border)"
 				>
-					Reintentar
+					Cancelar
 				</button>
-			</form>
-		{:else if data.clip.cues.length === 0}
-			<p class="p-2 text-sm" style:color="var(--color-ink-muted)">
-				No se ha encontrado texto en este clip.
-			</p>
-		{:else}
-			{@render practiceControls()}
-			{#if data.clip.translationCues.length > 0 && !listenFirst}
-				<p class="px-2 pt-1 text-xs" style:color="var(--color-ink-muted)">
-					En cursiva, los subtítulos {subtitlesLanguage
-						? `en ${subtitlesLanguage}`
-						: 'en otro idioma'} que venían con el vídeo.
-				</p>
-			{/if}
-			{#each data.clip.cues as cue, i (i)}
-				<div
-					{@attach scrollIntoViewWhen(i === activeIndex)}
-					class="rounded-md transition-colors"
-					style:background-color={i === activeIndex
-						? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
-						: i === selectedIndex
-							? 'var(--color-background)'
-							: 'transparent'}
-					style:box-shadow={i === activeIndex ? 'inset 3px 0 0 var(--color-accent)' : 'none'}
-					style:color={i === activeIndex ? 'var(--color-accent)' : undefined}
+			{:else}
+				<button
+					type="button"
+					onclick={() => (confirmingDelete = true)}
+					class="rounded-md border px-3 py-1.5 text-sm text-red-600"
+					style:border-color="var(--color-border)"
 				>
-					{#if listenFirst && !revealed.has(i)}
-						{@render hiddenCue(cue.start, cue.text, i)}
-					{:else if i === selectedIndex}
-						{@render selectedCue(cue.start, cue.text, i)}
-					{:else}
-						<button
-							type="button"
-							onclick={() => selectCue(i)}
-							class="flex w-full gap-3 px-2 py-1.5 text-left"
-							style:font-weight={i === activeIndex ? '600' : '400'}
-						>
-							<span
-								class="shrink-0 font-mono text-xs leading-6"
-								style:color="var(--color-ink-muted)"
-							>
-								{formatTimestamp(cue.start)}
-							</span>
-							<span class="flex flex-col">
-								<span class="whitespace-pre-line">{cue.text}</span>
-								{@render subtitles(i)}
-							</span>
-						</button>
-					{/if}
-				</div>
-			{/each}
-		{/if}
-	</section>
-
-	{#if data.clip.language && data.clip.cues.length > 0 && !transcribing && !canRetry}
-		<div class="flex flex-wrap items-center gap-2 text-sm">
-			<button
-				type="button"
-				onclick={extractVocabulary}
-				disabled={vocabExtraction === 'loading'}
-				class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
-				style:border-color="var(--color-border)"
-			>
-				Extraer vocabulario
-			</button>
-			{#if vocabExtraction === 'loading'}
-				<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
-			{:else if vocabExtraction === 'error'}
-				<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
-			{:else if vocabExtraction !== 'idle'}
-				<span class="text-xs" style:color="var(--color-ink-muted)">
-					{vocabExtraction.added > 0
-						? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
-						: 'Sin palabras nuevas'} —
-					<a href={resolve('/study')} class="underline" style:color="var(--color-accent)"
-						>ver libro de estudio</a
-					>
-				</span>
+					Borrar clip
+				</button>
 			{/if}
-		</div>
-	{/if}
+		</form>
+	</div>
 
-	<form method="POST" action="?/delete" use:enhance class="flex items-center gap-3">
-		{#if confirmingDelete}
-			<span class="text-sm">¿Borrar este clip y su audio?</span>
-			<button
-				type="submit"
-				class="rounded-md px-3 py-1.5 text-sm font-medium text-white"
-				style:background-color="#dc2626"
-			>
-				Borrar
-			</button>
-			<button
-				type="button"
-				onclick={() => (confirmingDelete = false)}
-				class="rounded-md border px-3 py-1.5 text-sm"
-				style:border-color="var(--color-border)"
-			>
-				Cancelar
-			</button>
-		{:else}
-			<button
-				type="button"
-				onclick={() => (confirmingDelete = true)}
-				class="rounded-md border px-3 py-1.5 text-sm text-red-600"
-				style:border-color="var(--color-border)"
-			>
-				Borrar clip
-			</button>
-		{/if}
-	</form>
+	{#if data.clip.language && data.clip.cues.length > 0}
+		<WordPanel
+			lookup={wordLookup}
+			language={data.clip.language}
+			idleText="Haz clic en una palabra del texto para ver su información."
+			open={wordPanelOpen}
+			onclose={() => (wordPanelOpen = false)}
+			onsave={saveWord}
+		/>
+	{/if}
 </div>
 
-{#snippet selectedCue(start: number, text: string, cueIndex: number)}
+{#snippet visibleCue(start: number, text: string, cueIndex: number)}
 	{@const translation = translations[cueIndex]}
 	<div class="flex gap-3 px-2 py-1.5" style:font-weight={cueIndex === activeIndex ? '600' : '400'}>
 		<button
 			type="button"
-			onclick={() => playFrom(start)}
-			aria-label="Reproducir desde aquí"
-			class="shrink-0 font-mono text-xs leading-6 underline"
+			onclick={() => selectCue(cueIndex)}
+			aria-label={`Reproducir desde ${formatTimestamp(start)}`}
+			class="flex shrink-0 items-center gap-1 self-start font-mono text-xs leading-6 hover:underline"
 			style:color="var(--color-ink-muted)"
 		>
+			<Play class="h-3 w-3" />
 			{formatTimestamp(start)}
 		</button>
-		<span class="whitespace-pre-line">
-			{#if data.clip.language}
-				{#each splitIntoWords(text) as token, t (t)}
-					{#if token.clickable}
-						<button
-							type="button"
-							onclick={() => lookupWord(cueIndex, token.text)}
-							class="hover:underline"
-							style:font="inherit"
-							style:color="inherit">{token.text}</button
-						>
-					{:else}
-						{token.text}
-					{/if}
-				{/each}
-			{:else}
-				{text}
-			{/if}
+		<span class="flex min-w-0 flex-col">
+			<span class="whitespace-pre-line">
+				{#if data.clip.language}
+					{#each splitIntoWords(text) as token, t (t)}
+						{#if token.clickable}
+							<button
+								type="button"
+								onclick={() => lookupWord(cueIndex, token.text)}
+								class="hover:underline"
+								style:font="inherit"
+								style:color="inherit">{token.text}</button
+							>
+						{:else}
+							{token.text}
+						{/if}
+					{/each}
+				{:else}
+					{text}
+				{/if}
+			</span>
+			{@render subtitles(cueIndex)}
 		</span>
 	</div>
 
-	<div class="flex flex-col gap-2 px-2 pb-2 pl-14 text-sm">
-		{@render subtitles(cueIndex)}
-		{#if !data.clip.language}
-			<p class="text-xs" style:color="var(--color-ink-muted)">
-				Langua no conoce el idioma de este clip, así que no puede traducirlo ni analizarlo.
-			</p>
-		{:else}
-			{#if translation === undefined || translation === 'error'}
+	{#if cueIndex === selectedIndex}
+		<div class="flex flex-col gap-2 px-2 pb-2 pl-16 text-sm">
+			{#if !data.clip.language}
+				<p class="text-xs" style:color="var(--color-ink-muted)">
+					Langua no conoce el idioma de este clip, así que no puede traducirlo ni analizarlo.
+				</p>
+			{:else if translation === undefined || translation === 'error'}
 				<button
 					type="button"
 					onclick={() => translateCue(cueIndex)}
@@ -526,43 +507,8 @@
 			{:else}
 				<p class="text-xs italic" style:color="var(--color-ink-muted)">{translation}</p>
 			{/if}
-
-			{#if wordLookup === 'idle'}
-				<p class="text-xs" style:color="var(--color-ink-muted)">
-					Toca una palabra para ver su información.
-				</p>
-			{:else if wordLookup === 'loading'}
-				<p class="text-xs italic" style:color="var(--color-ink-muted)">Analizando...</p>
-			{:else if wordLookup === 'error'}
-				<p class="text-xs" style:color="#f87171">No se pudo analizar la palabra.</p>
-			{:else}
-				<div
-					class="flex flex-col gap-2 rounded-md border p-3"
-					style:border-color="var(--color-border)"
-					style:background-color="var(--color-surface)"
-				>
-					<div class="flex items-center gap-2">
-						<span class="font-medium">{wordLookup.word}</span>
-						<SpeakButton text={wordLookup.word} language={data.clip.language} />
-					</div>
-					<span class="text-xs" style:color="var(--color-ink-muted)">
-						{WORD_POS_LABELS[wordLookup.partOfSpeech] ?? wordLookup.partOfSpeech}
-					</span>
-					<p>{wordLookup.translation}</p>
-					<p class="text-xs" style:color="var(--color-ink-muted)">{wordLookup.explanation}</p>
-					<button
-						type="button"
-						onclick={saveWord}
-						disabled={wordLookup.saved}
-						class="w-fit rounded-md px-2.5 py-1 text-xs font-medium text-white disabled:opacity-60"
-						style:background-color="var(--color-accent)"
-					>
-						{wordLookup.saved ? 'Añadida al libro de estudio' : 'Añadir al libro de estudio'}
-					</button>
-				</div>
-			{/if}
-		{/if}
-	</div>
+		</div>
+	{/if}
 {/snippet}
 
 {#snippet subtitles(cueIndex: number)}
