@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import { authenticateBearer } from '$lib/server/api-auth';
+import { enqueueClipTranscription } from '$lib/server/clip-transcription';
 import {
 	looksLikeMp4,
 	MAX_CLIP_AUDIO_BYTES,
@@ -67,6 +68,9 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		await clipStorage.delete(audioKey);
 		throw err;
 	}
+
+	// Answered before it's done: the clip shows «transcribiendo…» meanwhile.
+	if (plan.needsTranscription) enqueueClipTranscription(id, withRLS);
 
 	return json({ id, url: `${url.origin}/clips/${id}` }, { status: 201 });
 };

@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { error } from '@sveltejs/kit';
 import { eq, sql } from 'drizzle-orm';
-import { db, type Tx } from './db';
+import { db } from './db';
 import { integrationToken } from './db/schema';
-import { withUserRLS } from './db/rls';
+import { withUserRLS, type WithRLS } from './db/rls';
 
 // Integration tokens (Mi cuenta → Integraciones) let other apps such as
 // JellyCartoon call /api/v1/* as a given user. They're random and long, so
@@ -23,10 +23,9 @@ function hashIntegrationToken(token: string): string {
  * bound to the token's owner — the API counterpart of `locals.withRLS`, so
  * API routes never handle user ids themselves. Throws 401 otherwise.
  */
-export async function authenticateBearer(request: Request): Promise<{
-	userId: string;
-	withRLS: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>;
-}> {
+export async function authenticateBearer(
+	request: Request
+): Promise<{ userId: string; withRLS: WithRLS }> {
 	const match = request.headers.get('authorization')?.match(/^Bearer\s+(\S+)$/i);
 	if (!match) error(401, 'Falta el token de Langua.');
 
@@ -47,7 +46,7 @@ export async function authenticateBearer(request: Request): Promise<{
 	if (!row) error(401, 'El token de Langua no es válido o se ha revocado.');
 
 	const userId = row.userId;
-	const withRLS = <T>(fn: (tx: Tx) => Promise<T>) => withUserRLS(userId, fn);
+	const withRLS: WithRLS = (fn) => withUserRLS(userId, fn);
 
 	await withRLS((tx) =>
 		tx

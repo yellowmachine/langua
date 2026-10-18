@@ -1,6 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { db, type Tx } from '.';
 
+/** Runs `fn` in a transaction scoped by RLS to one, already-decided user. */
+export type WithRLS = <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>;
+
 // Row-Level Security: runs `fn` inside a transaction with
 // `app.current_user_id` set for that transaction only, which the per-user
 // tables' RLS policies key off of. This only has teeth because the app
