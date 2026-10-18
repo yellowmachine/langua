@@ -3,7 +3,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
-	import { clipOrigin, formatTimestamp } from '$lib/clips';
+	import { activeCueIndex, clipOrigin, formatTimestamp } from '$lib/clips';
 	import { LANGUAGES } from '$lib/languages';
 	import { splitIntoWords } from '$lib/wordTokens';
 	import type { PageData } from './$types';
@@ -69,9 +69,7 @@
 	let subtitlesLanguage = $derived(
 		LANGUAGES.find((lang) => lang.code === data.clip.translationLanguage)?.label.toLowerCase()
 	);
-	let activeIndex = $derived(
-		data.clip.cues.findIndex((cue) => cue.start <= currentTime && currentTime < cue.end)
-	);
+	let activeIndex = $derived(activeCueIndex(data.clip.cues, currentTime));
 
 	// Check back until the background transcription is done.
 	$effect(() => {
@@ -227,10 +225,14 @@
 			{#each data.clip.cues as cue, i (i)}
 				<div
 					{@attach scrollIntoViewWhen(i === activeIndex)}
-					class="rounded-md"
-					style:background-color={i === activeIndex || i === selectedIndex
-						? 'var(--color-background)'
-						: 'transparent'}
+					class="rounded-md transition-colors"
+					style:background-color={i === activeIndex
+						? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
+						: i === selectedIndex
+							? 'var(--color-background)'
+							: 'transparent'}
+					style:box-shadow={i === activeIndex ? 'inset 3px 0 0 var(--color-accent)' : 'none'}
+					style:color={i === activeIndex ? 'var(--color-accent)' : undefined}
 				>
 					{#if i === selectedIndex}
 						{@render selectedCue(cue.start, cue.text, i)}

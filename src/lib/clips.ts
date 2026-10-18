@@ -34,3 +34,23 @@ export function clipSourceName(clip: Omit<ClipSource, 'startSec' | 'endSec'>): s
 export function clipOrigin(clip: ClipSource): string {
 	return `${clipSourceName(clip)}, ${formatTimestamp(clip.startSec)}–${formatTimestamp(clip.endSec)}`;
 }
+
+// How long a phrase stays highlighted after it ends, if the next one hasn't
+// started yet: long enough to bridge a pause, short of lingering through
+// a stretch with no speech.
+const HIGHLIGHT_GRACE_SECONDS = 1.5;
+
+/**
+ * The phrase to highlight at `time`: the last one that has started, until
+ * the next one starts (so pauses between phrases don't blink the highlight
+ * off) but no more than a moment after it ends. -1 if none.
+ */
+export function activeCueIndex(cues: { start: number; end: number }[], time: number): number {
+	let index = -1;
+	for (let i = 0; i < cues.length && cues[i].start <= time; i++) index = i;
+	if (index === -1) return -1;
+
+	const next = cues[index + 1];
+	const until = Math.min(next?.start ?? Infinity, cues[index].end + HIGHLIGHT_GRACE_SECONDS);
+	return time < until ? index : -1;
+}
