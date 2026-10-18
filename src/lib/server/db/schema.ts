@@ -5,6 +5,7 @@ import {
 	timestamp,
 	boolean,
 	integer,
+	real,
 	jsonb,
 	index,
 	uniqueIndex,
@@ -27,6 +28,13 @@ export type ChatMessageAnalysis = {
 export type VocabExample = {
 	sentence: string;
 	translation: string;
+};
+
+/** One subtitle/transcript line of a clip; seconds from the start of the clip. */
+export type ClipCue = {
+	start: number;
+	end: number;
+	text: string;
 };
 
 export const user = pgTable('user', {
@@ -261,6 +269,98 @@ export const listeningAttemptRelations = relations(listeningAttempt, ({ one }) =
 	})
 }));
 
+// Per-user API tokens for other apps (e.g. JellyCartoon) to push content
+// in. Only the SHA-256 of the token is stored. Two policies: the usual
+// per-user one, for managing them from /account, and a lookup-by-hash one
+// for authenticateBearer, which has to find the row *before* it knows
+// whose it is — it only ever sees the one row whose hash it already has.
+export const integrationToken = pgTable(
+	'integration_token',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		tokenHash: text('token_hash').notNull().unique(),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		lastUsedAt: timestamp('last_used_at')
+	},
+	(t) => [
+		index('integration_token_user_idx').on(t.userId),
+		pgPolicy('integration_token_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		}),
+		pgPolicy('integration_token_lookup', {
+			for: 'select',
+			using: sql`${t.tokenHash} = current_setting('app.token_hash', true)`
+		})
+	]
+).enableRLS();
+
+export const integrationTokenRelations = relations(integrationToken, ({ one }) => ({
+	user: one(user, {
+		fields: [integrationToken.userId],
+		references: [user.id]
+	})
+}));
+
+// Audio clips sent in by an integration (JellyCartoon: a stretch of an
+// episode/film plus its subtitles). The audio itself lives in clipStorage
+// under `audioKey`, not in the database.
+export const clip = pgTable(
+	'clip',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		source: text('source').notNull(),
+		kind: text('kind', { enum: ['episode', 'film'] }).notNull(),
+		title: text('title').notNull(),
+		series: text('series'),
+		season: integer('season'),
+		episode: integer('episode'),
+		year: integer('year'),
+		// Stretch within the original video, in seconds.
+		startSec: real('start_sec').notNull(),
+		endSec: real('end_sec').notNull(),
+		// ISO 639-1, null if unknown or not one Langua supports.
+		language: text('language'),
+		transcript: text('transcript'),
+		cues: jsonb('cues').$type<ClipCue[]>().default([]).notNull(),
+		// Subtitles that came with the clip in another language than the audio
+		// (e.g. Spanish subs on English audio): kept, with their timings, as a
+		// translation of the transcript. ISO 639-1, null if unknown to Langua.
+		translationLanguage: text('translation_language'),
+		translationCues: jsonb('translation_cues').$type<ClipCue[]>().default([]).notNull(),
+		// 'pending' while the local STT is (re)transcribing it in the background.
+		transcriptionStatus: text('transcription_status', { enum: ['ready', 'pending', 'failed'] })
+			.default('ready')
+			.notNull(),
+		audioKey: text('audio_key').notNull(),
+		audioSize: integer('audio_size').notNull(),
+		audioType: text('audio_type').notNull(),
+		capturedAt: timestamp('captured_at').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('clip_user_idx').on(t.userId),
+		pgPolicy('clip_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+export const clipRelations = relations(clip, ({ one }) => ({
+	user: one(user, {
+		fields: [clip.userId],
+		references: [user.id]
+	})
+}));
+
 export const vocabItem = pgTable(
 	'vocab_item',
 	{
@@ -282,6 +382,7 @@ export const vocabItem = pgTable(
 		sourceConversationId: text('source_conversation_id').references(() => chatConversation.id, {
 			onDelete: 'set null'
 		}),
+		sourceClipId: text('source_clip_id').references(() => clip.id, { onDelete: 'set null' }),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(t) => [
@@ -302,5 +403,9 @@ export const vocabItemRelations = relations(vocabItem, ({ one }) => ({
 	sourceConversation: one(chatConversation, {
 		fields: [vocabItem.sourceConversationId],
 		references: [chatConversation.id]
+	}),
+	sourceClip: one(clip, {
+		fields: [vocabItem.sourceClipId],
+		references: [clip.id]
 	})
 }));

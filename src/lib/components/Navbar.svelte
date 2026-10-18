@@ -7,6 +7,7 @@
 	const links = $derived([
 		{ href: resolve('/chat'), label: 'Chat' },
 		{ href: resolve('/listen'), label: 'Escuchar' },
+		{ href: resolve('/clips'), label: 'Clips' },
 		{ href: resolve('/study'), label: 'Estudio' },
 		{ href: resolve('/translate'), label: 'Traducir' },
 		{ href: resolve('/correct'), label: 'Corregir' },

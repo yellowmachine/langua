@@ -12,6 +12,13 @@ const config = {
 	extensions: ['.svelte', '.svx', '.md'],
 	kit: {
 		adapter: adapter(),
+		// SvelteKit's built-in origin check would reject the multipart POSTs
+		// integrations (JellyCartoon) send server-to-server without an Origin
+		// header. handleCsrf in src/hooks.server.ts does the same check but
+		// skips /api/v1, which authenticates by bearer token, not cookies.
+		csrf: {
+			trustedOrigins: ['*']
+		},
 		experimental: {
 			remoteFunctions: true
 		},

@@ -169,8 +169,12 @@ services:
       STT_BASE_URL: http://stt:8000
       STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
       AUDIO_CACHE_DIR: /data/audio
+      # Audio of clips sent in by integrations (JellyCartoon). Unlike the
+      # TTS cache this isn't regenerable — back it up along with pgdata.
+      CLIPS_DIR: /data/clips
     volumes:
       - audio_cache:/data/audio
+      - clips_data:/data/clips
 
 volumes:
   pgdata:
@@ -178,3 +182,4 @@ volumes:
   tts_voices:
   stt_models:
   audio_cache:
+  clips_data:
