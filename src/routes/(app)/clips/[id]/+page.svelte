@@ -4,9 +4,13 @@
 	import { resolve } from '$app/paths';
 	import { SvelteSet } from 'svelte/reactivity';
 	import EyeOff from '@lucide/svelte/icons/eye-off';
+	import Pause from '@lucide/svelte/icons/pause';
+	import Play from '@lucide/svelte/icons/play';
 	import Repeat from '@lucide/svelte/icons/repeat';
+	import SkipBack from '@lucide/svelte/icons/skip-back';
+	import SkipForward from '@lucide/svelte/icons/skip-forward';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
-	import { activeCueIndex, clipOrigin, formatTimestamp } from '$lib/clips';
+	import { activeCueIndex, clipOrigin, cueSpan, formatTimestamp } from '$lib/clips';
 	import { LANGUAGES } from '$lib/languages';
 	import { splitIntoWords } from '$lib/wordTokens';
 	import type { PageData } from './$types';
@@ -18,6 +22,8 @@
 	let audio: HTMLAudioElement | undefined = $state();
 	let currentTime = $state(0);
 	let playbackRate = $state(1);
+	let duration = $state(0);
+	let paused = $state(true);
 	let confirmingDelete = $state(false);
 
 	const WORD_POS_LABELS: Record<string, string> = {
@@ -53,14 +59,10 @@
 	// "Repetir frase": the phrase being looped, or null.
 	let loopIndex: number | null = $state(null);
 
-	// The looped phrase's span, and whether `time` is far enough outside it
-	// to be a seek elsewhere (as opposed to just running past its end).
-	function loopBounds(index: number) {
-		const cue = data.clip.cues[index];
-		return { start: cue.start, end: Math.max(cue.end, cue.start + 0.5) };
-	}
+	// Whether `time` is far enough outside the looped phrase to be a seek
+	// elsewhere (as opposed to just running past its end).
 	function isAwayFromLoop(index: number, time: number) {
-		const { start, end } = loopBounds(index);
+		const { start, end } = cueSpan(data.clip.cues, index);
 		return time < start - 0.5 || time > end + 0.5;
 	}
 
@@ -116,6 +118,32 @@
 		void audio.play();
 	}
 
+	function togglePlay() {
+		if (!audio) return;
+		if (audio.paused) void audio.play();
+		else audio.pause();
+	}
+
+	// Previous/next phrase, like a music player's previous/next track:
+	// "previous" first goes back to the start of the current phrase if it's
+	// been playing for a bit.
+	function jumpPhrase(direction: -1 | 1) {
+		const cues = data.clip.cues;
+		if (cues.length === 0) return;
+
+		let current = -1;
+		for (let i = 0; i < cues.length && cues[i].start <= currentTime; i++) current = i;
+
+		let target: number;
+		if (direction === 1) target = current + 1;
+		else if (current >= 0 && currentTime - cues[current].start > 1) target = current;
+		else target = current - 1;
+		target = Math.min(Math.max(target, 0), cues.length - 1);
+
+		if (loopIndex !== null) loopIndex = target;
+		playFrom(cues[target].start);
+	}
+
 	function selectCue(index: number) {
 		if (selectedIndex !== index) wordLookup = 'idle';
 		selectedIndex = index;
@@ -138,7 +166,7 @@
 		const index = selectedIndex ?? (activeIndex >= 0 ? activeIndex : null);
 		if (index === null) return;
 		loopIndex = index;
-		playFrom(data.clip.cues[index].start);
+		playFrom(cueSpan(data.clip.cues, index).start);
 	}
 
 	function toggleListenFirst() {
@@ -157,7 +185,9 @@
 		if (loopIndex === null || !audio) return;
 		const player = audio;
 		const index = loopIndex;
-		const { start, end } = loopBounds(index);
+		// The same stretch the highlight covers, not just the phrase's
+		// recorded timings, which often end before the speech does.
+		const { start, end } = cueSpan(data.clip.cues, index);
 
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const schedule = () => {
@@ -284,16 +314,19 @@
 		</p>
 	</header>
 
+	<!-- Native controls can't be restyled, so the <audio> stays hidden and
+	     the bar below drives it. -->
 	<audio
 		bind:this={audio}
 		bind:currentTime
+		bind:duration
+		bind:paused
 		bind:playbackRate
 		onseeked={stopLoopIfSeekedAway}
-		controls
 		preload="metadata"
 		src={resolve('/(app)/clips/[id]/audio', { id: data.clip.id })}
-		class="w-full"
 	></audio>
+	{@render player()}
 
 	<section
 		class="flex flex-col gap-1 rounded-lg border p-2"
@@ -606,5 +639,67 @@
 		>
 			Mostrar
 		</button>
+	</div>
+{/snippet}
+
+{#snippet player()}
+	{@const total = Number.isFinite(duration) ? duration : 0}
+	<div
+		class="flex items-center gap-2 rounded-lg border px-3 py-2"
+		style:border-color="var(--color-border)"
+		style:background-color="var(--color-surface)"
+	>
+		<button
+			type="button"
+			onclick={() => jumpPhrase(-1)}
+			disabled={data.clip.cues.length === 0}
+			aria-label="Frase anterior"
+			class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md disabled:opacity-40"
+		>
+			<SkipBack class="h-4 w-4" />
+		</button>
+		<button
+			type="button"
+			onclick={togglePlay}
+			aria-label={paused ? 'Reproducir' : 'Pausar'}
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+			style:background-color="var(--color-accent)"
+		>
+			{#if paused}
+				<Play class="ml-0.5 h-5 w-5" fill="currentColor" />
+			{:else}
+				<Pause class="h-5 w-5" fill="currentColor" />
+			{/if}
+		</button>
+		<button
+			type="button"
+			onclick={() => jumpPhrase(1)}
+			disabled={data.clip.cues.length === 0}
+			aria-label="Frase siguiente"
+			class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md disabled:opacity-40"
+		>
+			<SkipForward class="h-4 w-4" />
+		</button>
+
+		<span class="w-10 shrink-0 text-right font-mono text-xs" style:color="var(--color-ink-muted)">
+			{formatTimestamp(currentTime)}
+		</span>
+		<input
+			type="range"
+			min="0"
+			max={total}
+			step="0.01"
+			value={currentTime}
+			oninput={(event) => {
+				if (audio) audio.currentTime = Number(event.currentTarget.value);
+			}}
+			aria-label="Posición"
+			aria-valuetext={`${formatTimestamp(currentTime)} de ${formatTimestamp(total)}`}
+			class="min-w-0 flex-1 cursor-pointer"
+			style:accent-color="var(--color-accent)"
+		/>
+		<span class="w-10 shrink-0 font-mono text-xs" style:color="var(--color-ink-muted)">
+			{formatTimestamp(total)}
+		</span>
 	</div>
 {/snippet}
