@@ -21,11 +21,20 @@ export const vocabularyExtractionSchema = z.object({
 
 export type VocabularyExtraction = z.infer<typeof vocabularyExtractionSchema>;
 
-/** Extracts learner-relevant vocabulary (nouns, verbs, adjectives, adverbs) from a chat transcript. */
+const TRANSCRIPT_DESCRIPTIONS = {
+	chat: 'a conversation transcript between a student and an AI tutor',
+	clip: 'the transcript of a scene from a TV series or film, one subtitle line per line'
+};
+
+/**
+ * Extracts learner-relevant vocabulary (nouns, verbs, adjectives, adverbs)
+ * from a chat transcript, or from a clip's (see /clips/[id]/vocabulary).
+ */
 export async function extractVocabulary(
 	transcript: string,
 	targetLanguage: string,
-	nativeLanguage: string
+	nativeLanguage: string,
+	source: keyof typeof TRANSCRIPT_DESCRIPTIONS = 'chat'
 ): Promise<VocabularyExtraction> {
 	const model = await getChatModel();
 	const targetName = englishNameForLanguage(targetLanguage);
@@ -34,7 +43,7 @@ export async function extractVocabulary(
 	const { object } = await generateObject({
 		model,
 		schema: vocabularyExtractionSchema,
-		prompt: `You are a ${targetName} language tutor building a vocabulary list from a conversation transcript between a student and an AI tutor.
+		prompt: `You are a ${targetName} language tutor building a vocabulary list from ${TRANSCRIPT_DESCRIPTIONS[source]}.
 
 Transcript:
 """

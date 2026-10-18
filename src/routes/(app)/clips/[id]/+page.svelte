@@ -97,6 +97,27 @@
 		playFrom(data.clip.cues[index].start);
 	}
 
+	let vocabExtraction: 'idle' | 'loading' | { added: number } | 'error' = $state('idle');
+
+	async function extractVocabulary() {
+		if (vocabExtraction === 'loading') return;
+
+		vocabExtraction = 'loading';
+		try {
+			const response = await fetch(resolve('/(app)/clips/[id]/vocabulary', { id: data.clip.id }), {
+				method: 'POST'
+			});
+			if (!response.ok) {
+				vocabExtraction = 'error';
+				return;
+			}
+			const result: { added: number } = await response.json();
+			vocabExtraction = { added: result.added };
+		} catch {
+			vocabExtraction = 'error';
+		}
+	}
+
 	async function translateCue(cueIndex: number) {
 		if (translations[cueIndex] && translations[cueIndex] !== 'error') return;
 		translations[cueIndex] = 'loading';
@@ -259,6 +280,34 @@
 			{/each}
 		{/if}
 	</section>
+
+	{#if data.clip.language && data.clip.cues.length > 0 && !transcribing && !canRetry}
+		<div class="flex flex-wrap items-center gap-2 text-sm">
+			<button
+				type="button"
+				onclick={extractVocabulary}
+				disabled={vocabExtraction === 'loading'}
+				class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
+				style:border-color="var(--color-border)"
+			>
+				Extraer vocabulario
+			</button>
+			{#if vocabExtraction === 'loading'}
+				<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
+			{:else if vocabExtraction === 'error'}
+				<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
+			{:else if vocabExtraction !== 'idle'}
+				<span class="text-xs" style:color="var(--color-ink-muted)">
+					{vocabExtraction.added > 0
+						? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
+						: 'Sin palabras nuevas'} —
+					<a href={resolve('/study')} class="underline" style:color="var(--color-accent)"
+						>ver libro de estudio</a
+					>
+				</span>
+			{/if}
+		</div>
+	{/if}
 
 	<form method="POST" action="?/delete" use:enhance class="flex items-center gap-3">
 		{#if confirmingDelete}
