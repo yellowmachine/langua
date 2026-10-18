@@ -1,23 +1,39 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { APIError } from 'better-auth';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { integrationToken, user } from '$lib/server/db/schema';
+import { generateIntegrationToken } from '$lib/server/api-auth';
 import { totpQrSvg, twoFactorErrorMessage } from '$lib/server/two-factor';
 import type { Actions, PageServerLoad } from './$types';
+
+const MAX_TOKEN_NAME_LENGTH = 60;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) redirect(303, '/login');
 
 	// Read from the DB rather than locals.user: enabling/disabling 2FA
 	// rotates the session, so locals still holds the pre-action user here.
-	const [row] = await db
-		.select({ twoFactorEnabled: user.twoFactorEnabled })
-		.from(user)
-		.where(eq(user.id, locals.user.id));
+	const [[row], tokens] = await Promise.all([
+		db
+			.select({ twoFactorEnabled: user.twoFactorEnabled })
+			.from(user)
+			.where(eq(user.id, locals.user.id)),
+		locals.withRLS((tx) =>
+			tx
+				.select({
+					id: integrationToken.id,
+					name: integrationToken.name,
+					createdAt: integrationToken.createdAt,
+					lastUsedAt: integrationToken.lastUsedAt
+				})
+				.from(integrationToken)
+				.orderBy(desc(integrationToken.createdAt))
+		)
+	]);
 
-	return { twoFactorEnabled: row?.twoFactorEnabled ?? false };
+	return { twoFactorEnabled: row?.twoFactorEnabled ?? false, tokens };
 };
 
 export const actions: Actions = {
@@ -132,5 +148,45 @@ export const actions: Actions = {
 			}
 			throw error;
 		}
+	},
+
+	// The token itself is only ever returned here, once — only its hash is stored.
+	createToken: async (event) => {
+		const data = await event.request.formData();
+		const name = String(data.get('name') ?? '').trim();
+
+		if (!name) {
+			return fail(400, { formId: 'createToken', message: 'Ponle un nombre al token.' });
+		}
+		if (name.length > MAX_TOKEN_NAME_LENGTH) {
+			return fail(400, {
+				formId: 'createToken',
+				message: `El nombre no puede pasar de ${MAX_TOKEN_NAME_LENGTH} caracteres.`
+			});
+		}
+
+		const { token, tokenHash } = generateIntegrationToken();
+		await event.locals.withRLS((tx) =>
+			tx.insert(integrationToken).values({
+				id: crypto.randomUUID(),
+				userId: event.locals.user!.id,
+				name,
+				tokenHash
+			})
+		);
+
+		return { formId: 'createToken', name, token };
+	},
+
+	revokeToken: async (event) => {
+		const data = await event.request.formData();
+		const id = String(data.get('id') ?? '');
+		if (!id) return fail(400, { formId: 'revokeToken', message: 'Falta el token.' });
+
+		await event.locals.withRLS((tx) =>
+			tx.delete(integrationToken).where(eq(integrationToken.id, id))
+		);
+
+		return { formId: 'revokeToken', success: true };
 	}
 };
