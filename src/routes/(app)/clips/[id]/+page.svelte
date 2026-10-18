@@ -2,6 +2,9 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { SvelteSet } from 'svelte/reactivity';
+	import EyeOff from '@lucide/svelte/icons/eye-off';
+	import Repeat from '@lucide/svelte/icons/repeat';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import { activeCueIndex, clipOrigin, formatTimestamp } from '$lib/clips';
 	import { LANGUAGES } from '$lib/languages';
@@ -14,6 +17,7 @@
 
 	let audio: HTMLAudioElement | undefined = $state();
 	let currentTime = $state(0);
+	let playbackRate = $state(1);
 	let confirmingDelete = $state(false);
 
 	const WORD_POS_LABELS: Record<string, string> = {
@@ -43,6 +47,27 @@
 				saved: boolean;
 		  };
 	let wordLookup: WordLookup = $state('idle');
+
+	const PLAYBACK_RATES = [0.5, 0.75, 1];
+
+	// "Repetir frase": the phrase being looped, or null.
+	let loopIndex: number | null = $state(null);
+
+	// The looped phrase's span, and whether `time` is far enough outside it
+	// to be a seek elsewhere (as opposed to just running past its end).
+	function loopBounds(index: number) {
+		const cue = data.clip.cues[index];
+		return { start: cue.start, end: Math.max(cue.end, cue.start + 0.5) };
+	}
+	function isAwayFromLoop(index: number, time: number) {
+		const { start, end } = loopBounds(index);
+		return time < start - 0.5 || time > end + 0.5;
+	}
+
+	// "Escuchar primero": phrases stay blurred until revealed one by one, so
+	// the learner listens before reading.
+	let listenFirst = $state(false);
+	const revealed = new SvelteSet<number>();
 
 	let languageLabel = $derived(
 		LANGUAGES.find((lang) => lang.code === data.clip.language)?.label ?? 'Idioma desconocido'
@@ -94,7 +119,73 @@
 	function selectCue(index: number) {
 		if (selectedIndex !== index) wordLookup = 'idle';
 		selectedIndex = index;
+		if (loopIndex !== null) loopIndex = index;
 		playFrom(data.clip.cues[index].start);
+	}
+
+	// While hidden, clicking a phrase only plays it: selecting it would show
+	// its words.
+	function playHidden(index: number) {
+		if (loopIndex !== null) loopIndex = index;
+		playFrom(data.clip.cues[index].start);
+	}
+
+	function toggleLoop() {
+		if (loopIndex !== null) {
+			loopIndex = null;
+			return;
+		}
+		const index = selectedIndex ?? (activeIndex >= 0 ? activeIndex : null);
+		if (index === null) return;
+		loopIndex = index;
+		playFrom(data.clip.cues[index].start);
+	}
+
+	function toggleListenFirst() {
+		listenFirst = !listenFirst;
+		revealed.clear();
+		selectedIndex = null;
+		wordLookup = 'idle';
+	}
+
+	// A timer set for the exact end of the phrase, rescheduled whenever
+	// playback starts, seeks or changes speed. Not timeupdate alone (~4 times
+	// a second, letting the start of the next phrase slip through) nor
+	// requestAnimationFrame (throttled to a couple of frames a second when
+	// the window is covered or saving power).
+	$effect(() => {
+		if (loopIndex === null || !audio) return;
+		const player = audio;
+		const index = loopIndex;
+		const { start, end } = loopBounds(index);
+
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const schedule = () => {
+			clearTimeout(timer);
+			// Seeked elsewhere: stopLoopIfSeekedAway ends the loop, don't pull back.
+			if (player.paused || isAwayFromLoop(index, player.currentTime)) return;
+			if (player.currentTime >= end) {
+				player.currentTime = start; // its 'seeked' reschedules
+				return;
+			}
+			timer = setTimeout(schedule, ((end - player.currentTime) / player.playbackRate) * 1000);
+		};
+
+		const events = ['play', 'seeked', 'ratechange', 'timeupdate'] as const;
+		for (const event of events) player.addEventListener(event, schedule);
+		schedule();
+		return () => {
+			clearTimeout(timer);
+			for (const event of events) player.removeEventListener(event, schedule);
+		};
+	});
+
+	// Seeking elsewhere with the player's own controls ends the loop. Our own
+	// jumps back to the start of the looped phrase land inside it.
+	function stopLoopIfSeekedAway() {
+		if (loopIndex !== null && audio && isAwayFromLoop(loopIndex, audio.currentTime)) {
+			loopIndex = null;
+		}
 	}
 
 	let vocabExtraction: 'idle' | 'loading' | { added: number } | 'error' = $state('idle');
@@ -196,6 +287,8 @@
 	<audio
 		bind:this={audio}
 		bind:currentTime
+		bind:playbackRate
+		onseeked={stopLoopIfSeekedAway}
 		controls
 		preload="metadata"
 		src={resolve('/(app)/clips/[id]/audio', { id: data.clip.id })}
@@ -236,7 +329,8 @@
 				No se ha encontrado texto en este clip.
 			</p>
 		{:else}
-			{#if data.clip.translationCues.length > 0}
+			{@render practiceControls()}
+			{#if data.clip.translationCues.length > 0 && !listenFirst}
 				<p class="px-2 pt-1 text-xs" style:color="var(--color-ink-muted)">
 					En cursiva, los subtítulos {subtitlesLanguage
 						? `en ${subtitlesLanguage}`
@@ -255,7 +349,9 @@
 					style:box-shadow={i === activeIndex ? 'inset 3px 0 0 var(--color-accent)' : 'none'}
 					style:color={i === activeIndex ? 'var(--color-accent)' : undefined}
 				>
-					{#if i === selectedIndex}
+					{#if listenFirst && !revealed.has(i)}
+						{@render hiddenCue(cue.start, cue.text, i)}
+					{:else if i === selectedIndex}
 						{@render selectedCue(cue.start, cue.text, i)}
 					{:else}
 						<button
@@ -442,4 +538,73 @@
 			{subtitlesByCue[cueIndex]}
 		</span>
 	{/if}
+{/snippet}
+
+{#snippet practiceControls()}
+	<div
+		class="flex flex-wrap items-center gap-2 border-b px-2 pb-2 text-xs"
+		style:border-color="var(--color-border)"
+	>
+		<div class="flex items-center gap-1" role="group" aria-label="Velocidad">
+			{#each PLAYBACK_RATES as rate (rate)}
+				<button
+					type="button"
+					onclick={() => (playbackRate = rate)}
+					aria-pressed={playbackRate === rate}
+					class="rounded-md border px-2 py-1"
+					style:border-color={playbackRate === rate ? 'var(--color-accent)' : 'var(--color-border)'}
+					style:color={playbackRate === rate ? 'var(--color-accent)' : undefined}
+				>
+					{rate.toLocaleString('es')}×
+				</button>
+			{/each}
+		</div>
+		<button
+			type="button"
+			onclick={toggleLoop}
+			aria-pressed={loopIndex !== null}
+			disabled={loopIndex === null && selectedIndex === null && activeIndex < 0}
+			class="flex items-center gap-1.5 rounded-md border px-2 py-1 disabled:opacity-50"
+			style:border-color={loopIndex !== null ? 'var(--color-accent)' : 'var(--color-border)'}
+			style:color={loopIndex !== null ? 'var(--color-accent)' : undefined}
+		>
+			<Repeat class="h-3.5 w-3.5" />
+			Repetir frase
+		</button>
+		<button
+			type="button"
+			onclick={toggleListenFirst}
+			aria-pressed={listenFirst}
+			class="flex items-center gap-1.5 rounded-md border px-2 py-1"
+			style:border-color={listenFirst ? 'var(--color-accent)' : 'var(--color-border)'}
+			style:color={listenFirst ? 'var(--color-accent)' : undefined}
+		>
+			<EyeOff class="h-3.5 w-3.5" />
+			Escuchar primero
+		</button>
+	</div>
+{/snippet}
+
+{#snippet hiddenCue(start: number, text: string, cueIndex: number)}
+	<div class="flex items-start gap-3 px-2 py-1.5">
+		<button
+			type="button"
+			onclick={() => playHidden(cueIndex)}
+			class="flex min-w-0 flex-1 gap-3 text-left"
+		>
+			<span class="shrink-0 font-mono text-xs leading-6" style:color="var(--color-ink-muted)">
+				{formatTimestamp(start)}
+			</span>
+			<span class="sr-only">Frase oculta</span>
+			<span aria-hidden="true" class="blur-sm select-none">{text}</span>
+		</button>
+		<button
+			type="button"
+			onclick={() => revealed.add(cueIndex)}
+			class="shrink-0 text-xs leading-6 underline"
+			style:color="var(--color-ink-muted)"
+		>
+			Mostrar
+		</button>
+	</div>
 {/snippet}
