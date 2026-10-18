@@ -5,6 +5,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
+	import WordPanel, { type WordLookup } from '$lib/components/WordPanel.svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import { fetchSpeechAudio } from '$lib/audio';
 	import { LANGUAGES } from '$lib/languages';
@@ -13,14 +14,6 @@
 	import { buildHighlightSegments, type HighlightError } from '$lib/textHighlight';
 	import { splitIntoWords, sentenceContaining } from '$lib/wordTokens';
 	import type { ActionData, PageData } from './$types';
-
-	const WORD_POS_LABELS: Record<string, string> = {
-		noun: 'Sustantivo',
-		verb: 'Verbo',
-		adjective: 'Adjetivo',
-		adverb: 'Adverbio',
-		other: 'Otro'
-	};
 
 	interface MessageAnalysis {
 		errors: HighlightError[];
@@ -244,19 +237,6 @@
 		input = text;
 	}
 
-	type WordLookup =
-		| 'idle'
-		| 'loading'
-		| {
-				word: string;
-				sentence: string;
-				lemma: string;
-				partOfSpeech: string;
-				translation: string;
-				explanation: string;
-				saved: boolean;
-		  }
-		| 'error';
 	let wordLookup: WordLookup = $state('idle');
 
 	async function lookupWord(word: string, sentence: string) {
@@ -466,15 +446,6 @@
 			type="button"
 			aria-label="Cerrar"
 			onclick={() => (conversationsOpen = false)}
-			class="fixed inset-0 z-30 bg-black/40 sm:hidden"
-		></button>
-	{/if}
-
-	{#if wordPanelOpen}
-		<button
-			type="button"
-			aria-label="Cerrar"
-			onclick={() => (wordPanelOpen = false)}
 			class="fixed inset-0 z-30 bg-black/40 sm:hidden"
 		></button>
 	{/if}
@@ -712,66 +683,14 @@
 		</section>
 
 		{#if data.activeId}
-			<aside
-				class="fixed inset-y-0 right-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-3 overflow-y-auto border-l p-4 shadow-xl sm:static sm:z-auto sm:flex sm:max-w-none sm:border-t-0 sm:p-0 sm:pl-4 sm:shadow-none"
-				style:border-color="var(--color-border)"
-				style:background-color="var(--color-background)"
-				class:hidden={!wordPanelOpen}
-				class:flex={wordPanelOpen}
-			>
-				<div class="flex items-center justify-between">
-					<h2 class="text-sm font-medium" style:color="var(--color-ink-muted)">Palabra</h2>
-					<button
-						type="button"
-						onclick={() => (wordPanelOpen = false)}
-						aria-label="Cerrar"
-						class="rounded-md p-1 sm:hidden"
-					>
-						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
-							<path
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								d="M6 6l12 12M18 6L6 18"
-							/>
-						</svg>
-					</button>
-				</div>
-				{#if wordLookup === 'idle'}
-					<p class="text-xs" style:color="var(--color-ink-muted)">
-						Haz clic en una palabra de una respuesta del tutor para ver su información.
-					</p>
-				{:else if wordLookup === 'loading'}
-					<p class="text-xs italic" style:color="var(--color-ink-muted)">Analizando...</p>
-				{:else if wordLookup === 'error'}
-					<p class="text-xs" style:color="#f87171">No se pudo analizar la palabra.</p>
-				{:else}
-					<div class="flex flex-col gap-2 text-sm">
-						<div class="flex items-center gap-2">
-							<span class="font-medium">{wordLookup.word}</span>
-							<SpeakButton
-								text={wordLookup.word}
-								language={data.activeConversation?.targetLanguage}
-							/>
-						</div>
-						<span class="text-xs" style:color="var(--color-ink-muted)">
-							{WORD_POS_LABELS[wordLookup.partOfSpeech] ?? wordLookup.partOfSpeech}
-						</span>
-						<p>{wordLookup.translation}</p>
-						<p class="text-xs" style:color="var(--color-ink-muted)">{wordLookup.explanation}</p>
-						<p class="text-xs italic" style:color="var(--color-ink-muted)">{wordLookup.sentence}</p>
-						<button
-							type="button"
-							onclick={saveWord}
-							disabled={wordLookup.saved}
-							class="w-fit rounded-md px-2.5 py-1 text-xs font-medium text-white disabled:opacity-60"
-							style:background-color="var(--color-accent)"
-						>
-							{wordLookup.saved ? 'Añadida al libro de estudio' : 'Añadir al libro de estudio'}
-						</button>
-					</div>
-				{/if}
-			</aside>
+			<WordPanel
+				lookup={wordLookup}
+				language={data.activeConversation?.targetLanguage}
+				idleText="Haz clic en una palabra de una respuesta del tutor para ver su información."
+				open={wordPanelOpen}
+				onclose={() => (wordPanelOpen = false)}
+				onsave={saveWord}
+			/>
 		{/if}
 	</div>
 </div>
