@@ -14,6 +14,7 @@ Thumbs.db
 
 # TTS audio cache (dev only — in prod this lives in a docker volume)
 /data/audio
+/data/clips
 
 # Env
 .env
