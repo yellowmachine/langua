@@ -28,6 +28,12 @@ export function createAuthOptions(params: {
 			// /settings sign the resulting user in explicitly when needed.
 			autoSignIn: false
 		},
+		// Nobody signs themselves up: accounts are only created by /setup (the
+		// first admin) and by an admin from /settings, both of which call
+		// auth.api.signUpEmail server-side after their own checks. disabledPaths
+		// only applies to HTTP requests, so it closes the public endpoint
+		// without affecting those direct calls.
+		disabledPaths: ['/sign-up/email'],
 		user: {
 			additionalFields: {
 				role: {
