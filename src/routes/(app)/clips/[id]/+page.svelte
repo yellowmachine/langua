@@ -55,6 +55,20 @@
 		data.clip.transcriptionStatus === 'failed' ||
 			(data.clip.transcriptionStatus === 'pending' && !data.transcriptionQueued)
 	);
+	// Subtitles that came in another language than the audio, shown under
+	// whichever transcribed phrases they overlap in time. Whisper can give a
+	// phrase (almost) no duration, hence the minimum width.
+	let subtitlesByCue = $derived(
+		data.clip.cues.map((cue) =>
+			data.clip.translationCues
+				.filter((sub) => sub.start < Math.max(cue.end, cue.start + 0.5) && sub.end > cue.start)
+				.map((sub) => sub.text)
+				.join(' ')
+		)
+	);
+	let subtitlesLanguage = $derived(
+		LANGUAGES.find((lang) => lang.code === data.clip.translationLanguage)?.label.toLowerCase()
+	);
 	let activeIndex = $derived(
 		data.clip.cues.findIndex((cue) => cue.start <= currentTime && currentTime < cue.end)
 	);
@@ -203,6 +217,13 @@
 				No se ha encontrado texto en este clip.
 			</p>
 		{:else}
+			{#if data.clip.translationCues.length > 0}
+				<p class="px-2 pt-1 text-xs" style:color="var(--color-ink-muted)">
+					En cursiva, los subtítulos {subtitlesLanguage
+						? `en ${subtitlesLanguage}`
+						: 'en otro idioma'} que venían con el vídeo.
+				</p>
+			{/if}
 			{#each data.clip.cues as cue, i (i)}
 				<div
 					{@attach scrollIntoViewWhen(i === activeIndex)}
@@ -226,7 +247,10 @@
 							>
 								{formatTimestamp(cue.start)}
 							</span>
-							<span class="whitespace-pre-line">{cue.text}</span>
+							<span class="flex flex-col">
+								<span class="whitespace-pre-line">{cue.text}</span>
+								{@render subtitles(i)}
+							</span>
 						</button>
 					{/if}
 				</div>
@@ -299,6 +323,7 @@
 	</div>
 
 	<div class="flex flex-col gap-2 px-2 pb-2 pl-14 text-sm">
+		{@render subtitles(cueIndex)}
 		{#if !data.clip.language}
 			<p class="text-xs" style:color="var(--color-ink-muted)">
 				Langua no conoce el idioma de este clip, así que no puede traducirlo ni analizarlo.
@@ -358,4 +383,12 @@
 			{/if}
 		{/if}
 	</div>
+{/snippet}
+
+{#snippet subtitles(cueIndex: number)}
+	{#if subtitlesByCue[cueIndex]}
+		<span class="text-xs font-normal italic" style:color="var(--color-ink-muted)">
+			{subtitlesByCue[cueIndex]}
+		</span>
+	{/if}
 {/snippet}

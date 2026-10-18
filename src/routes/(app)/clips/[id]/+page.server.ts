@@ -23,6 +23,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				endSec: clip.endSec,
 				language: clip.language,
 				cues: clip.cues,
+				translationLanguage: clip.translationLanguage,
+				translationCues: clip.translationCues,
 				transcriptionStatus: clip.transcriptionStatus,
 				capturedAt: clip.capturedAt
 			})

@@ -61,6 +61,7 @@ describe('planClipTranscript', () => {
 				{ start: 1, end: 4, text: 'How you doin?' },
 				{ start: 5, end: 6, text: 'Pivot!' }
 			],
+			translation: null,
 			needsTranscription: false
 		});
 	});
@@ -75,18 +76,45 @@ describe('planClipTranscript', () => {
 			language: 'en',
 			transcript: null,
 			cues: [],
+			translation: null,
 			needsTranscription: true
 		});
 	});
 
-	it('transcribes when subtitles are in another language than the audio', () => {
-		const plan = planClipTranscript(parsed({ transcriptLanguage: 'spa' }));
-		expect(plan).toMatchObject({ language: 'en', transcript: null, needsTranscription: true });
+	it('transcribes when subtitles are in another language, keeping them as a translation', () => {
+		expect(planClipTranscript(parsed({ transcriptLanguage: 'spa' }))).toEqual({
+			language: 'en',
+			transcript: null,
+			cues: [],
+			translation: {
+				language: 'es',
+				cues: [
+					{ start: 1, end: 4, text: 'How you doin?' },
+					{ start: 5, end: 6, text: 'Pivot!' }
+				]
+			},
+			needsTranscription: true
+		});
 	});
 
-	it('trusts subtitles when the audio language is unknown, and takes their language', () => {
+	it('transcribes when the audio language is unknown, keeping the subtitles as a translation', () => {
 		const plan = planClipTranscript(parsed({ language: 'und', transcriptLanguage: 'fre' }));
-		expect(plan).toMatchObject({ language: 'fr', needsTranscription: false });
+		expect(plan).toMatchObject({
+			language: null,
+			transcript: null,
+			translation: { language: 'fr' },
+			needsTranscription: true
+		});
+	});
+
+	it('trusts subtitles without a language tag on audio whose language is known', () => {
+		const plan = planClipTranscript(parsed({ transcriptLanguage: null }));
+		expect(plan).toMatchObject({ language: 'en', translation: null, needsTranscription: false });
+	});
+
+	it('transcribes subtitles without timings and does not keep them', () => {
+		const plan = planClipTranscript(parsed({ cues: [] }));
+		expect(plan).toMatchObject({ transcript: null, translation: null, needsTranscription: true });
 	});
 
 	it('keeps an unsupported language as null but still compares it', () => {
@@ -95,7 +123,7 @@ describe('planClipTranscript', () => {
 		).toMatchObject({ language: null, needsTranscription: false });
 		expect(
 			planClipTranscript(parsed({ language: 'jpn', transcriptLanguage: 'eng' }))
-		).toMatchObject({ language: null, needsTranscription: true });
+		).toMatchObject({ language: null, translation: { language: 'en' }, needsTranscription: true });
 	});
 
 	it('derives the transcript from the cues and drops empty or out-of-range ones', () => {

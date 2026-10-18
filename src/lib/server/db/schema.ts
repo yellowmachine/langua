@@ -330,6 +330,11 @@ export const clip = pgTable(
 		language: text('language'),
 		transcript: text('transcript'),
 		cues: jsonb('cues').$type<ClipCue[]>().default([]).notNull(),
+		// Subtitles that came with the clip in another language than the audio
+		// (e.g. Spanish subs on English audio): kept, with their timings, as a
+		// translation of the transcript. ISO 639-1, null if unknown to Langua.
+		translationLanguage: text('translation_language'),
+		translationCues: jsonb('translation_cues').$type<ClipCue[]>().default([]).notNull(),
 		// 'pending' while the local STT is (re)transcribing it in the background.
 		transcriptionStatus: text('transcription_status', { enum: ['ready', 'pending', 'failed'] })
 			.default('ready')

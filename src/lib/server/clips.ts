@@ -56,13 +56,17 @@ export function parseClipMetadata(
 
 /**
  * What to store as the clip's text, and whether the local STT has to
- * (re)transcribe it instead: when there are no subtitles, or they're in a
- * different language than the audio (e.g. Spanish subs on English audio).
+ * transcribe it instead. Subtitles are more reliable than the STT, so
+ * they're used whenever they're in the audio's language. Otherwise the
+ * audio is transcribed and the subtitles, if any, are kept as a translation
+ * — e.g. Spanish subs on English audio, or subs on audio whose language is
+ * unknown ("und"), which might just as well be a translation.
  */
 export function planClipTranscript(metadata: ClipMetadata): {
 	language: string | null;
 	transcript: string | null;
 	cues: ClipCue[];
+	translation: { language: string | null; cues: ClipCue[] } | null;
 	needsTranscription: boolean;
 } {
 	const audioLanguage = normalizeIso6392(metadata.language);
@@ -79,27 +83,31 @@ export function planClipTranscript(metadata: ClipMetadata): {
 		.sort((a, b) => a.start - b.start);
 	const transcript = metadata.transcript?.trim() || cues.map((cue) => cue.text).join('\n');
 
-	// If either side's language is unknown we can't tell they differ, so the
-	// subtitles get the benefit of the doubt (and lend the audio their language).
-	const subtitlesUsable =
-		cues.length > 0 &&
-		Boolean(transcript) &&
-		(!audioLanguage || !subtitleLanguage || audioLanguage === subtitleLanguage);
+	// Compared as ISO 639-2, not as Langua's 639-1: two languages Langua
+	// doesn't support would both map to null there and look like a match.
+	// Subtitles with no language tag get the benefit of the doubt; audio with
+	// none doesn't, since there's nothing to check the subtitles against.
+	const subtitlesMatchAudio =
+		audioLanguage !== null && (subtitleLanguage === null || subtitleLanguage === audioLanguage);
 
-	if (!subtitlesUsable) {
+	// Without timings (cues) the text can't follow the audio, so it doesn't count.
+	if (cues.length > 0 && transcript && subtitlesMatchAudio) {
 		return {
 			language: languaLanguageFromIso6392(audioLanguage),
-			transcript: null,
-			cues: [],
-			needsTranscription: true
+			transcript,
+			cues,
+			translation: null,
+			needsTranscription: false
 		};
 	}
 
 	return {
-		language: languaLanguageFromIso6392(audioLanguage ?? subtitleLanguage),
-		transcript,
-		cues,
-		needsTranscription: false
+		language: languaLanguageFromIso6392(audioLanguage),
+		transcript: null,
+		cues: [],
+		translation:
+			cues.length > 0 ? { language: languaLanguageFromIso6392(subtitleLanguage), cues } : null,
+		needsTranscription: true
 	};
 }
 

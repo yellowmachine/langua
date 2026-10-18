@@ -57,6 +57,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 				language: plan.language,
 				transcript: plan.transcript,
 				cues: plan.cues,
+				translationLanguage: plan.translation?.language ?? null,
+				translationCues: plan.translation?.cues ?? [],
 				transcriptionStatus: plan.needsTranscription ? 'pending' : 'ready',
 				audioKey,
 				audioSize: audio.size,
