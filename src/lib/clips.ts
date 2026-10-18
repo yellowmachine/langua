@@ -35,22 +35,39 @@ export function clipOrigin(clip: ClipSource): string {
 	return `${clipSourceName(clip)}, ${formatTimestamp(clip.startSec)}–${formatTimestamp(clip.endSec)}`;
 }
 
-// How long a phrase stays highlighted after it ends, if the next one hasn't
-// started yet: long enough to bridge a pause, short of lingering through
-// a stretch with no speech.
-const HIGHLIGHT_GRACE_SECONDS = 1.5;
+// Phrase timings (whisper's word timestamps especially) tend to end a bit
+// before the speech does: a phrase is taken to run until the next one starts,
+// up to this long past its recorded end — long enough to bridge a pause and
+// the tail of the last word, short of lingering through a stretch with no
+// speech.
+const PHRASE_TAIL_SECONDS = 1.5;
+// And to start slightly early, so looping it doesn't clip the first syllable.
+const PHRASE_LEAD_SECONDS = 0.2;
+
+type Timed = { start: number; end: number };
 
 /**
- * The phrase to highlight at `time`: the last one that has started, until
- * the next one starts (so pauses between phrases don't blink the highlight
- * off) but no more than a moment after it ends. -1 if none.
+ * The stretch of audio a phrase covers, as highlighted and as looped by
+ * "Repetir frase": from just before its start until the next phrase
+ * starts, but no more than a moment after its own end.
  */
-export function activeCueIndex(cues: { start: number; end: number }[], time: number): number {
+export function cueSpan(cues: Timed[], index: number): { start: number; end: number } {
+	const cue = cues[index];
+	const next = cues[index + 1];
+	const end = Math.max(
+		cue.start + 0.5,
+		Math.min(next?.start ?? Infinity, cue.end + PHRASE_TAIL_SECONDS)
+	);
+	return { start: Math.max(0, cue.start - PHRASE_LEAD_SECONDS), end };
+}
+
+/**
+ * The phrase to highlight at `time`: the last one that has started, for as
+ * long as its span (see cueSpan) lasts. -1 if none.
+ */
+export function activeCueIndex(cues: Timed[], time: number): number {
 	let index = -1;
 	for (let i = 0; i < cues.length && cues[i].start <= time; i++) index = i;
 	if (index === -1) return -1;
-
-	const next = cues[index + 1];
-	const until = Math.min(next?.start ?? Infinity, cues[index].end + HIGHLIGHT_GRACE_SECONDS);
-	return time < until ? index : -1;
+	return time < cueSpan(cues, index).end ? index : -1;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeCueIndex, clipOrigin, formatTimestamp } from './clips';
+import { activeCueIndex, clipOrigin, cueSpan, formatTimestamp } from './clips';
 
 const episode = {
 	kind: 'episode' as const,
@@ -78,5 +78,53 @@ describe('activeCueIndex', () => {
 	it('is -1 before the first phrase or without phrases', () => {
 		expect(activeCueIndex(cues.slice(3), 1)).toBe(-1);
 		expect(activeCueIndex([], 1)).toBe(-1);
+	});
+});
+
+describe('cueSpan', () => {
+	it('runs until the next phrase starts, to cover speech past the recorded end', () => {
+		const cues = [
+			{ start: 0.92, end: 1.42 },
+			{ start: 2.3, end: 3 }
+		];
+		expect(cueSpan(cues, 0)).toEqual({ start: 0.72, end: 2.3 });
+	});
+
+	it('runs at most a moment past its end when the next phrase is far off or missing', () => {
+		expect(
+			cueSpan(
+				[
+					{ start: 1, end: 2 },
+					{ start: 10, end: 11 }
+				],
+				0
+			)
+		).toEqual({ start: 0.8, end: 3.5 });
+		expect(cueSpan([{ start: 1, end: 2 }], 0).end).toBe(3.5);
+	});
+
+	it('stops where an overlapping next phrase starts, but lasts at least half a second', () => {
+		expect(
+			cueSpan(
+				[
+					{ start: 1, end: 3 },
+					{ start: 2, end: 4 }
+				],
+				0
+			).end
+		).toBe(2);
+		expect(
+			cueSpan(
+				[
+					{ start: 1, end: 1 },
+					{ start: 1.1, end: 2 }
+				],
+				0
+			).end
+		).toBe(1.5);
+	});
+
+	it('never starts before the beginning of the clip', () => {
+		expect(cueSpan([{ start: 0.1, end: 1 }], 0).start).toBe(0);
 	});
 });

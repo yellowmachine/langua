@@ -6,7 +6,7 @@
 	import EyeOff from '@lucide/svelte/icons/eye-off';
 	import Repeat from '@lucide/svelte/icons/repeat';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
-	import { activeCueIndex, clipOrigin, formatTimestamp } from '$lib/clips';
+	import { activeCueIndex, clipOrigin, cueSpan, formatTimestamp } from '$lib/clips';
 	import { LANGUAGES } from '$lib/languages';
 	import { splitIntoWords } from '$lib/wordTokens';
 	import type { PageData } from './$types';
@@ -53,14 +53,10 @@
 	// "Repetir frase": the phrase being looped, or null.
 	let loopIndex: number | null = $state(null);
 
-	// The looped phrase's span, and whether `time` is far enough outside it
-	// to be a seek elsewhere (as opposed to just running past its end).
-	function loopBounds(index: number) {
-		const cue = data.clip.cues[index];
-		return { start: cue.start, end: Math.max(cue.end, cue.start + 0.5) };
-	}
+	// Whether `time` is far enough outside the looped phrase to be a seek
+	// elsewhere (as opposed to just running past its end).
 	function isAwayFromLoop(index: number, time: number) {
-		const { start, end } = loopBounds(index);
+		const { start, end } = cueSpan(data.clip.cues, index);
 		return time < start - 0.5 || time > end + 0.5;
 	}
 
@@ -138,7 +134,7 @@
 		const index = selectedIndex ?? (activeIndex >= 0 ? activeIndex : null);
 		if (index === null) return;
 		loopIndex = index;
-		playFrom(data.clip.cues[index].start);
+		playFrom(cueSpan(data.clip.cues, index).start);
 	}
 
 	function toggleListenFirst() {
@@ -157,7 +153,9 @@
 		if (loopIndex === null || !audio) return;
 		const player = audio;
 		const index = loopIndex;
-		const { start, end } = loopBounds(index);
+		// The same stretch the highlight covers, not just the phrase's
+		// recorded timings, which often end before the speech does.
+		const { start, end } = cueSpan(data.clip.cues, index);
 
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const schedule = () => {
