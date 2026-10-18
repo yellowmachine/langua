@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clipOrigin, formatTimestamp } from './clips';
+import { activeCueIndex, clipOrigin, formatTimestamp } from './clips';
 
 const episode = {
 	kind: 'episode' as const,
@@ -44,5 +44,39 @@ describe('clipOrigin', () => {
 				endSec: 4200
 			})
 		).toBe('Her (2013), 1:00:00–1:10:00');
+	});
+});
+
+describe('activeCueIndex', () => {
+	const cues = [
+		{ start: 0, end: 0.56 },
+		{ start: 0.92, end: 1.42 },
+		{ start: 1.3, end: 2 },
+		{ start: 6, end: 7 }
+	];
+
+	it('highlights the phrase being spoken', () => {
+		expect(activeCueIndex(cues, 0.3)).toBe(0);
+		expect(activeCueIndex(cues, 1)).toBe(1);
+	});
+
+	it('keeps it through a short pause instead of blinking off', () => {
+		expect(activeCueIndex(cues, 0.7)).toBe(0);
+	});
+
+	it('moves on as soon as the next one starts, even if they overlap', () => {
+		expect(activeCueIndex(cues, 1.35)).toBe(2);
+	});
+
+	it('lets go a moment after the end when nothing follows soon', () => {
+		expect(activeCueIndex(cues, 3)).toBe(2);
+		expect(activeCueIndex(cues, 3.6)).toBe(-1);
+		expect(activeCueIndex(cues, 7.4)).toBe(3);
+		expect(activeCueIndex(cues, 9)).toBe(-1);
+	});
+
+	it('is -1 before the first phrase or without phrases', () => {
+		expect(activeCueIndex(cues.slice(3), 1)).toBe(-1);
+		expect(activeCueIndex([], 1)).toBe(-1);
 	});
 });

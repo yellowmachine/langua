@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import type { ClipCue } from '$lib/server/db/schema';
 import { serverSentEventData } from '$lib/server/sse';
+import { cuesFromWhisperSegment, type WhisperSegment } from './whisper-cues';
 
 const STT_BASE_URL = env.STT_BASE_URL ?? 'http://stt:8000';
 const STT_MODEL = env.STT_MODEL ?? 'Systran/faster-whisper-small';
@@ -35,12 +36,12 @@ const LONG_TRANSCRIPTION_TIMEOUT_MS = 30 * 60_000;
 
 type VerboseTranscriptionChunk = {
 	language: string;
-	segments: { start: number; end: number; text: string }[];
+	segments: WhisperSegment[];
 };
 
 /**
- * Like transcribeSpeech, but with per-phrase timings (whisper's segments)
- * for following along with the audio. `language` is whatever whisper
+ * Like transcribeSpeech, but with per-sentence timings for following along
+ * with the audio. `language` is whatever whisper
  * detected when none was given.
  *
  * Streamed (`stream=true`, one server-sent event per segment) rather than a
@@ -58,6 +59,10 @@ export async function transcribeWithSegments(
 	form.set('model', STT_MODEL);
 	form.set('response_format', 'verbose_json');
 	form.set('stream', 'true');
+	// Segment timestamps alone are coarse (often whole seconds), which made
+	// the highlighted phrase drift from the audio; word timestamps cost
+	// about the same and let each sentence be timed from its own words.
+	form.append('timestamp_granularities[]', 'word');
 	if (language) form.set('language', language);
 
 	const response = await fetch(`${STT_BASE_URL}/v1/audio/transcriptions`, {
@@ -76,10 +81,7 @@ export async function transcribeWithSegments(
 	for await (const data of serverSentEventData(response.body)) {
 		const chunk = JSON.parse(data) as VerboseTranscriptionChunk;
 		detectedLanguage ??= chunk.language || null;
-		for (const segment of chunk.segments) {
-			const text = segment.text.trim();
-			if (text) cues.push({ start: segment.start, end: segment.end, text });
-		}
+		for (const segment of chunk.segments) cues.push(...cuesFromWhisperSegment(segment));
 	}
 
 	return { language: detectedLanguage, cues };
