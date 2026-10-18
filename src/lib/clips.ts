@@ -21,7 +21,7 @@ export function formatTimestamp(totalSeconds: number): string {
 }
 
 /** Where the clip comes from, e.g. `Friends T3E7` or `Her (2013)`. */
-export function clipSourceName(clip: ClipSource): string {
+export function clipSourceName(clip: Omit<ClipSource, 'startSec' | 'endSec'>): string {
 	if (clip.kind === 'episode' && clip.series) {
 		const number =
 			clip.season !== null && clip.episode !== null ? ` T${clip.season}E${clip.episode}` : '';
