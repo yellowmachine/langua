@@ -17,11 +17,12 @@ export type MessageTranslation = z.infer<typeof messageTranslationSchema>;
  * next to "Enviar", before sending).
  */
 export async function translateMessage(
+	userId: string,
 	text: string,
 	fromLanguage: string,
 	toLanguage: string
 ): Promise<MessageTranslation> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const fromName = englishNameForLanguage(fromLanguage);
 	const toName = englishNameForLanguage(toLanguage);
 

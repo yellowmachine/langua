@@ -22,10 +22,11 @@ export type MessageAnalysis = z.infer<typeof messageAnalysisSchema>;
 
 /** Reviews a learner's message for spelling/grammar mistakes, for inline highlighting in chat. */
 export async function analyzeUserMessage(
+	userId: string,
 	text: string,
 	targetLanguage: string
 ): Promise<MessageAnalysis> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const languageName = englishNameForLanguage(targetLanguage);
 
 	const { object } = await generateObject({

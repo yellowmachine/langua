@@ -21,13 +21,13 @@ export const POST: RequestHandler = async (event) => {
 
 	if (includeStyleAnalysis) {
 		const [correction, styleAnalysis] = await Promise.all([
-			correctWriting(text, targetLanguage, nativeLanguage),
-			analyzeWritingStyle(text, targetLanguage, nativeLanguage)
+			correctWriting(event.locals.user.id, text, targetLanguage, nativeLanguage),
+			analyzeWritingStyle(event.locals.user.id, text, targetLanguage, nativeLanguage)
 		]);
 		return json({ ...correction, styleAnalysis });
 	}
 
-	const result = await correctWriting(text, targetLanguage, nativeLanguage);
+	const result = await correctWriting(event.locals.user.id, text, targetLanguage, nativeLanguage);
 
 	return json(result);
 };

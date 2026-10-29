@@ -16,7 +16,7 @@ export const POST: RequestHandler = async (event) => {
 		error(400, 'Invalid language');
 	}
 
-	const analysis = await analyzeUserMessage(text, language);
+	const analysis = await analyzeUserMessage(event.locals.user.id, text, language);
 
 	// The user message row may not exist yet (this analysis call races with
 	// /chat/api's own insert of the same message), so upsert on the shared id

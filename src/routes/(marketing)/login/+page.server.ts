@@ -1,44 +1,27 @@
-import { fail, redirect } from '@sveltejs/kit';
-import { APIError } from 'better-auth';
+import { redirect } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { user } from '$lib/server/db/schema';
+import { SEILIDE_PROVIDER_ID } from '$lib/server/auth-options';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(303, '/dashboard');
 
-	const [existing] = await db.select({ id: user.id }).from(user).limit(1);
-	if (!existing) redirect(303, '/setup');
+	// better-auth sends the browser back here with ?error=… when the sign-in
+	// with Seilide fails (cancelled, rejected, misconfigured client…).
+	return { failed: url.searchParams.has('error') };
 };
 
 export const actions: Actions = {
 	default: async (event) => {
-		const data = await event.request.formData();
-		const username = String(data.get('username') ?? '').trim();
-		const password = String(data.get('password') ?? '');
+		const { url } = await auth.api.signInWithOAuth2({
+			body: {
+				providerId: SEILIDE_PROVIDER_ID,
+				callbackURL: '/dashboard',
+				errorCallbackURL: '/login'
+			},
+			headers: event.request.headers
+		});
 
-		if (!username || !password) {
-			return fail(400, { message: 'Introduce usuario y contraseña.' });
-		}
-
-		let result;
-		try {
-			result = await auth.api.signInUsername({
-				body: { username, password },
-				headers: event.request.headers
-			});
-		} catch (error) {
-			if (error instanceof APIError) {
-				return fail(400, { message: 'Usuario o contraseña incorrectos.' });
-			}
-			throw error;
-		}
-
-		// 2FA enabled: no session yet, only a short-lived two_factor cookie
-		// that /login/2fa trades for one once the code checks out.
-		if (result && 'twoFactorRedirect' in result) redirect(303, '/login/2fa');
-
-		redirect(303, '/dashboard');
+		redirect(303, url);
 	}
 };

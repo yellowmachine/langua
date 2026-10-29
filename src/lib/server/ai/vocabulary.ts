@@ -31,12 +31,13 @@ const TRANSCRIPT_DESCRIPTIONS = {
  * from a chat transcript, or from a clip's (see /clips/[id]/vocabulary).
  */
 export async function extractVocabulary(
+	userId: string,
 	transcript: string,
 	targetLanguage: string,
 	nativeLanguage: string,
 	source: keyof typeof TRANSCRIPT_DESCRIPTIONS = 'chat'
 ): Promise<VocabularyExtraction> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

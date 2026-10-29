@@ -1,9 +1,11 @@
 import type { BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-import { twoFactor, username } from 'better-auth/plugins';
+import { genericOAuth } from 'better-auth/plugins';
 import * as schema from './db/schema';
 
 type Db = Parameters<typeof drizzleAdapter>[0];
+
+export const SEILIDE_PROVIDER_ID = 'seilide';
 
 /**
  * Shared between the runtime auth instance (auth.ts) and the CLI-only config
@@ -14,33 +16,21 @@ export function createAuthOptions(params: {
 	db: Db;
 	secret: string;
 	baseURL: string;
+	seilide: { url: string; clientId: string; clientSecret: string };
 	plugins?: BetterAuthOptions['plugins'];
 }) {
 	return {
 		database: drizzleAdapter(params.db, { provider: 'pg', schema }),
 		secret: params.secret,
 		baseURL: params.baseURL,
-		emailAndPassword: {
-			enabled: true,
-			// Off by default: sign-up is also how an admin creates a family
-			// member's account (POST /settings), and that must not swap out the
-			// admin's own session cookie for the new member's. /setup and
-			// /settings sign the resulting user in explicitly when needed.
-			autoSignIn: false
+		// Seilide (JellyCartoon's cloud) is the only way in. The account is
+		// created on the first sign-in; one that already exists is linked by
+		// email instead (see scripts/link-seilide.ts for accounts made before).
+		account: {
+			accountLinking: { enabled: true, trustedProviders: [SEILIDE_PROVIDER_ID] }
 		},
-		// Nobody signs themselves up: accounts are only created by /setup (the
-		// first admin) and by an admin from /settings, both of which call
-		// auth.api.signUpEmail server-side after their own checks. disabledPaths
-		// only applies to HTTP requests, so it closes the public endpoint
-		// without affecting those direct calls.
-		disabledPaths: ['/sign-up/email'],
 		user: {
 			additionalFields: {
-				role: {
-					type: 'string',
-					input: false,
-					defaultValue: 'member'
-				},
 				nativeLanguage: {
 					type: 'string',
 					required: false
@@ -63,9 +53,24 @@ export function createAuthOptions(params: {
 				}
 			}
 		},
-		// TOTP 2FA, opt-in per user from /account. Backup codes are generated
-		// on enable so a lost phone doesn't lock anyone out; an admin can also
-		// reset a member's 2FA from /settings.
-		plugins: [username(), twoFactor({ issuer: 'Langua' }), ...(params.plugins ?? [])]
+		plugins: [
+			genericOAuth({
+				config: [
+					{
+						providerId: SEILIDE_PROVIDER_ID,
+						discoveryUrl: `${params.seilide.url}/api/auth/.well-known/openid-configuration`,
+						clientId: params.seilide.clientId,
+						clientSecret: params.seilide.clientSecret,
+						authentication: 'basic',
+						pkce: true,
+						// `family` puts the family id in the token, which Seilide's AI
+						// endpoint needs; `offline_access` gives the refresh token
+						// getAccessToken uses once the 1-hour access token expires.
+						scopes: ['openid', 'profile', 'email', 'offline_access', 'family']
+					}
+				]
+			}),
+			...(params.plugins ?? [])
+		]
 	} satisfies BetterAuthOptions;
 }

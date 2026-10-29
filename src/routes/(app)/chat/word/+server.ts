@@ -22,6 +22,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const analysis = await analyzeWord(
+		event.locals.user.id,
 		word,
 		sentence,
 		targetLanguage,

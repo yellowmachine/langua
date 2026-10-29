@@ -11,11 +11,12 @@ export type QuickReplies = z.infer<typeof quickRepliesSchema>;
 
 /** Two short example replies a beginner could send next, for the chat's "modo iniciático". */
 export async function generateQuickReplies(
+	userId: string,
 	assistantText: string,
 	targetLanguage: string,
 	focus?: string | null
 ): Promise<QuickReplies> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const languageName = englishNameForLanguage(targetLanguage);
 
 	const { object } = await generateObject({

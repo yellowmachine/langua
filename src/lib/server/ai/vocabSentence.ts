@@ -12,13 +12,14 @@ export type ExampleSentence = z.infer<typeof exampleSentenceSchema>;
 
 /** Generates a fresh example sentence (with translation) for a vocabulary word, for the /study page. */
 export async function generateExampleSentence(
+	userId: string,
 	word: string,
 	partOfSpeech: string,
 	targetLanguage: string,
 	nativeLanguage: string,
 	existingSentences: string[]
 ): Promise<ExampleSentence> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

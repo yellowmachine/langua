@@ -34,11 +34,12 @@ export type WritingStyleAnalysis = z.infer<typeof writingStyleAnalysisSchema>;
 
 /** Holistic style read of a piece of text for the /correct tool — independent of grammar correctness or authorship (the text may be pasted, not the learner's own writing). */
 export async function analyzeWritingStyle(
+	userId: string,
 	text: string,
 	targetLanguage: string,
 	nativeLanguage: string
 ): Promise<WritingStyleAnalysis> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

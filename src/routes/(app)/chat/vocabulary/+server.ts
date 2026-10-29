@@ -34,6 +34,7 @@ export const POST: RequestHandler = async (event) => {
 
 	const transcript = messages.map((m) => `${m.role}: ${m.content}`).join('\n');
 	const { items } = await extractVocabulary(
+		event.locals.user.id,
 		transcript,
 		conversation.targetLanguage,
 		event.locals.user.nativeLanguage ?? 'English'

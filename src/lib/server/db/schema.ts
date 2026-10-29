@@ -48,15 +48,11 @@ export const user = pgTable('user', {
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
-	username: text('username').unique(),
-	displayUsername: text('display_username'),
-	role: text('role').default('member'),
 	nativeLanguage: text('native_language'),
 	targetLanguage: text('target_language'),
 	theme: text('theme').default('warm'),
 	dark: boolean('dark').default(false),
-	highContrast: boolean('high_contrast').default(false),
-	twoFactorEnabled: boolean('two_factor_enabled').default(false)
+	highContrast: boolean('high_contrast').default(false)
 });
 
 export const session = pgTable(
@@ -118,38 +114,9 @@ export const verification = pgTable(
 	(table) => [index('verification_identifier_idx').on(table.identifier)]
 );
 
-// better-auth twoFactor plugin: TOTP secret + backup codes, both encrypted
-// with BETTER_AUTH_SECRET. One row per user with 2FA set up.
-export const twoFactor = pgTable(
-	'two_factor',
-	{
-		id: text('id').primaryKey(),
-		secret: text('secret').notNull(),
-		backupCodes: text('backup_codes').notNull(),
-		userId: text('user_id')
-			.notNull()
-			.references(() => user.id, { onDelete: 'cascade' }),
-		verified: boolean('verified').default(true),
-		failedVerificationCount: integer('failed_verification_count').default(0),
-		lockedUntil: timestamp('locked_until')
-	},
-	(table) => [
-		index('twoFactor_secret_idx').on(table.secret),
-		index('twoFactor_userId_idx').on(table.userId)
-	]
-);
-
 export const userRelations = relations(user, ({ many }) => ({
 	sessions: many(session),
-	accounts: many(account),
-	twoFactors: many(twoFactor)
-}));
-
-export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
-	user: one(user, {
-		fields: [twoFactor.userId],
-		references: [user.id]
-	})
+	accounts: many(account)
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -165,13 +132,6 @@ export const accountRelations = relations(account, ({ one }) => ({
 		references: [user.id]
 	})
 }));
-
-// Instance-wide settings (API keys, preferred models). One deployment =
-// one family, so this is a plain key-value table, not scoped to a user.
-export const appSettings = pgTable('app_settings', {
-	key: text('key').primaryKey(),
-	value: text('value').notNull()
-});
 
 // Per-user content: gated by Postgres RLS (see PLANNING.md §5), not just
 // application code. Only reachable via `locals.withRLS`, never the plain

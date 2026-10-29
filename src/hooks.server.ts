@@ -1,4 +1,5 @@
-import { error, text, type Handle } from '@sveltejs/kit';
+import { error, text, type Handle, type HandleServerError } from '@sveltejs/kit';
+import { APICallError, RetryError } from 'ai';
 import { sequence } from '@sveltejs/kit/hooks';
 import { building, dev } from '$app/environment';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
@@ -62,3 +63,16 @@ const handleBetterAuth: Handle = ({ event, resolve }) => {
 };
 
 export const handle: Handle = sequence(handleCsrf, handleSession, handleRLS, handleBetterAuth);
+
+// Seilide's AI endpoint answers 401/402/403/502 with a short Spanish message
+// meant for the person (no credit left, the family has no OpenRouter key…),
+// so pass it on instead of SvelteKit's generic "Internal Error".
+export const handleError: HandleServerError = ({ error }) => {
+	// 502 is retried by the AI SDK, which then wraps the last attempt.
+	const cause = RetryError.isInstance(error) ? error.lastError : error;
+	if (APICallError.isInstance(cause) && SEILIDE_AI_ERRORS.includes(cause.statusCode ?? 0)) {
+		return { message: cause.message };
+	}
+};
+
+const SEILIDE_AI_ERRORS = [401, 402, 403, 502];

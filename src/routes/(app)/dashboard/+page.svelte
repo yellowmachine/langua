@@ -23,7 +23,6 @@
 	<header>
 		<h1 class="text-xl font-semibold">Hola, {data.user.name}</h1>
 		<p class="text-sm" style:color="var(--color-ink-muted)">
-			{data.user.role === 'admin' ? 'Administrador' : 'Miembro'} ·
 			{data.user.targetLanguage ?? 'sin idioma configurado todavía'}
 		</p>
 	</header>

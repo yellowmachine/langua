@@ -16,7 +16,12 @@ export const POST: RequestHandler = async (event) => {
 		error(400, 'Invalid target language');
 	}
 
-	const { translation } = await translateMessage(text, fromLanguage, toLanguage);
+	const { translation } = await translateMessage(
+		event.locals.user.id,
+		text,
+		fromLanguage,
+		toLanguage
+	);
 
 	return json({ translation });
 };

@@ -19,12 +19,13 @@ export type ListeningExercise = z.infer<typeof listeningExerciseSchema>;
 
 /** Audio for the passage is generated on demand by the existing /tts endpoint. */
 export async function generateListeningExercise(
+	userId: string,
 	targetLanguage?: string | null,
 	level?: string | null,
 	exerciseType?: string | null
 ): Promise<ListeningExercise> {
 	const languageName = englishNameForLanguage(targetLanguage);
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 
 	const typeInstruction = exerciseType
 		? ` The learner asked for this kind of passage (their own words, possibly in their native language): "${exerciseType}".`

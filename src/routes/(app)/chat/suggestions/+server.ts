@@ -14,6 +14,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const result = await generateQuickReplies(
+		event.locals.user.id,
 		text,
 		language,
 		typeof focus === 'string' ? focus : null

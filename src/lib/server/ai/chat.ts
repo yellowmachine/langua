@@ -1,38 +1,54 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { getResolvedAiMode } from '../settings';
+import { auth } from '../auth';
+import { SEILIDE_PROVIDER_ID } from '../auth-options';
 
-const OLLAMA_BASE_URL = env.OLLAMA_BASE_URL ?? 'http://ollama:11434/v1';
-const OLLAMA_MODEL = env.OLLAMA_MODEL ?? 'qwen2.5:1.5b';
 const OPENROUTER_MODEL = env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini';
 
 /**
- * Cloud (OpenRouter) if an admin both saved a key AND explicitly switched
- * to cloud mode in Settings, local (Ollama, in-compose) otherwise. Both are
- * OpenAI-compatible endpoints, so one client shape covers either backend —
- * see PLANNING.md §2.
+ * Seilide's AI endpoint, OpenAI-compatible: it calls OpenRouter with the
+ * key of the family the access token belongs to, and books the cost under
+ * Gastos → IA labelled with X-Title. Kept apart from getChatModel so it can
+ * be tested without a database or a network.
  */
-export async function getChatModel() {
-	const { mode, apiKey } = await getResolvedAiMode();
-
-	if (mode === 'cloud' && apiKey) {
-		const openrouter = createOpenAICompatible({
-			name: 'openrouter',
-			baseURL: 'https://openrouter.ai/api/v1',
-			apiKey,
-			// Needed for generateObject (e.g. the Escuchar module) to send a
-			// real json_schema constraint instead of hoping the model free-forms
-			// valid JSON — without this, small/local models routinely produce
-			// structurally invalid output.
-			supportsStructuredOutputs: true
-		});
-		return openrouter(OPENROUTER_MODEL);
-	}
-
-	const ollama = createOpenAICompatible({
-		name: 'ollama',
-		baseURL: OLLAMA_BASE_URL,
+export function createSeilideModel(params: {
+	seilideUrl: string;
+	accessToken: string;
+	modelId: string;
+}) {
+	const seilide = createOpenAICompatible({
+		name: 'seilide',
+		baseURL: `${params.seilideUrl}/api/ia/v1`,
+		apiKey: params.accessToken,
+		headers: { 'X-Title': 'Langua' },
+		// Needed for generateObject (e.g. the Escuchar module) to send a
+		// real json_schema constraint instead of hoping the model free-forms
+		// valid JSON.
 		supportsStructuredOutputs: true
 	});
-	return ollama(OLLAMA_MODEL);
+	return seilide(params.modelId);
+}
+
+/**
+ * The model, on behalf of `userId`: the request is paid for by that user's
+ * family in Seilide. getAccessToken refreshes the 1-hour access token with
+ * the stored refresh token when it has expired.
+ */
+export async function getChatModel(userId: string) {
+	let accessToken: string | undefined;
+	try {
+		({ accessToken } = await auth.api.getAccessToken({
+			body: { providerId: SEILIDE_PROVIDER_ID, userId }
+		}));
+	} catch {
+		// No Seilide account linked, or the refresh token was revoked.
+	}
+	if (!accessToken) error(401, 'Tu sesión con Seilide ha caducado. Sal y vuelve a entrar.');
+
+	return createSeilideModel({
+		seilideUrl: env.SEILIDE_URL!,
+		accessToken,
+		modelId: OPENROUTER_MODEL
+	});
 }

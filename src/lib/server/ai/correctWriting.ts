@@ -25,11 +25,12 @@ export type WritingCorrection = z.infer<typeof writingCorrectionSchema>;
 
 /** Reviews a piece of free-form writing for the standalone /correct tool (no chat context). */
 export async function correctWriting(
+	userId: string,
 	text: string,
 	targetLanguage: string,
 	nativeLanguage: string
 ): Promise<WritingCorrection> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

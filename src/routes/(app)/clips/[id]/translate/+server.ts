@@ -10,6 +10,7 @@ export const POST: RequestHandler = async (event) => {
 	const { language, text } = await loadClipCue(event.locals.withRLS, event.params.id, cueIndex);
 
 	const { translation } = await translateMessage(
+		event.locals.user.id,
 		text,
 		language,
 		event.locals.user.nativeLanguage ?? 'English'

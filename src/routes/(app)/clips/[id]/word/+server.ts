@@ -18,6 +18,7 @@ export const POST: RequestHandler = async (event) => {
 	const { language, text } = await loadClipCue(event.locals.withRLS, event.params.id, cueIndex);
 
 	const analysis = await analyzeWord(
+		event.locals.user.id,
 		word,
 		text,
 		language,

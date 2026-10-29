@@ -32,6 +32,7 @@ export const POST: RequestHandler = async (event) => {
 	if (source.cues.length === 0) return json({ added: 0, total: 0 });
 
 	const { items } = await extractVocabulary(
+		event.locals.user.id,
 		source.cues.map((cue) => cue.text).join('\n'),
 		language,
 		event.locals.user.nativeLanguage ?? 'English',
