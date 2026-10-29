@@ -52,11 +52,7 @@
 	style:background-color="var(--color-surface)"
 >
 	<div class="mx-auto flex max-w-4xl items-center gap-3 px-6 py-3">
-		<a
-			href={resolve('/dashboard')}
-			class="text-base font-semibold"
-			style:color="var(--color-accent)"
-		>
+		<a href={resolve('/chat')} class="text-base font-semibold" style:color="var(--color-accent)">
 			Langua
 		</a>
 

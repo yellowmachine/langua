@@ -3,6 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { generateExampleSentence } from '$lib/server/ai/vocabSentence';
 import { vocabItem } from '$lib/server/db/schema';
 import type { RequestHandler } from './$types';
+import { requireNativeLanguage } from '$lib/server/user-language';
 
 export const POST: RequestHandler = async (event) => {
 	if (!event.locals.user) error(401, 'Unauthorized');
@@ -26,7 +27,7 @@ export const POST: RequestHandler = async (event) => {
 		item.word,
 		item.partOfSpeech,
 		item.targetLanguage,
-		event.locals.user.nativeLanguage ?? 'English',
+		requireNativeLanguage(event.locals.user),
 		[item.exampleSentence, ...item.extraExamples.map((example) => example.sentence)]
 	);
 

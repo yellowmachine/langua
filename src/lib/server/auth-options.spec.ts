@@ -49,7 +49,7 @@ function createTestAuth(db: Record<string, Row[]>) {
 /** Runs «Entrar con Seilide» end to end, as the browser would. */
 async function signInWithSeilide(auth: ReturnType<typeof createTestAuth>) {
 	const { headers, response } = await auth.api.signInWithOAuth2({
-		body: { providerId: 'seilide', callbackURL: '/dashboard' },
+		body: { providerId: 'seilide', callbackURL: '/chat' },
 		returnHeaders: true
 	});
 	const authorizeUrl = new URL(response.url);
@@ -101,7 +101,7 @@ describe('Entrar con Seilide', () => {
 		const response = await signInWithSeilide(createTestAuth(db));
 
 		expect(response.status).toBe(302);
-		expect(response.headers.get('location')).toBe('/dashboard');
+		expect(response.headers.get('location')).toBe('/chat');
 		expect(db.user).toHaveLength(1);
 		expect(db.account).toEqual([
 			expect.objectContaining({

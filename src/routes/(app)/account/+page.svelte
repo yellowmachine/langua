@@ -1,9 +1,26 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
+	import ThemePicker from '$lib/components/ThemePicker.svelte';
+	import { LANGUAGES } from '$lib/languages';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	let missingLanguages = $derived(!data.user.nativeLanguage || !data.user.targetLanguage);
+
+	async function persistTheme(state: { theme: string; dark: boolean; highContrast: boolean }) {
+		const body = new FormData();
+		body.set('theme', state.theme);
+		body.set('dark', state.dark ? '1' : '0');
+		body.set('highContrast', state.highContrast ? '1' : '0');
+		await fetch('?/theme', {
+			method: 'POST',
+			headers: { 'x-sveltekit-action': 'true' },
+			body
+		});
+	}
 
 	const dateFormatter = new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -27,7 +44,92 @@
 <div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
 	<header>
 		<h1 class="text-xl font-semibold">Mi cuenta</h1>
+		<p class="text-sm" style:color="var(--color-ink-muted)">{data.user.name}</p>
 	</header>
+
+	<section
+		class="flex flex-col gap-3 rounded-lg border p-4"
+		style:border-color={missingLanguages ? 'var(--color-accent)' : 'var(--color-border)'}
+		style:background-color="var(--color-surface)"
+	>
+		<h2 class="text-sm font-medium">Idiomas</h2>
+		{#if missingLanguages}
+			<p class="text-sm">
+				Antes de empezar, dinos qué idioma hablas y cuál aprendes: las traducciones y explicaciones
+				salen en tu idioma nativo, y practicas el otro.
+			</p>
+		{/if}
+		<form
+			method="POST"
+			action="?/language"
+			use:enhance={() => {
+				return async ({ update }) => {
+					// Default use:enhance behavior calls form.reset() on success,
+					// which snaps <select>s back to their first <option> instead
+					// of showing what was actually just saved.
+					await update({ reset: false });
+				};
+			}}
+			class="flex flex-col gap-3 sm:flex-row"
+		>
+			<label class="flex flex-1 flex-col gap-1 text-sm">
+				Idioma nativo
+				<select
+					name="nativeLanguage"
+					value={data.user.nativeLanguage ?? ''}
+					required
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					<option value="" disabled>Elige uno</option>
+					{#each LANGUAGES as lang (lang.code)}
+						<option value={lang.code}>{lang.label}</option>
+					{/each}
+				</select>
+			</label>
+			<label class="flex flex-1 flex-col gap-1 text-sm">
+				Idioma que aprendo
+				<select
+					name="targetLanguage"
+					value={data.user.targetLanguage ?? ''}
+					required
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					<option value="" disabled>Elige uno</option>
+					{#each LANGUAGES as lang (lang.code)}
+						<option value={lang.code}>{lang.label}</option>
+					{/each}
+				</select>
+			</label>
+			<button
+				type="submit"
+				class="self-end rounded-md px-3 py-2 text-sm font-medium text-white"
+				style:background-color="var(--color-accent)"
+			>
+				Guardar
+			</button>
+		</form>
+		{#if messageFor('language')}
+			<p class="text-sm text-red-600">{messageFor('language')}</p>
+		{/if}
+		{#if form?.formId === 'language' && 'success' in form}
+			<p class="text-sm" style:color="var(--color-accent)">
+				Guardado. <a href={resolve('/chat')} class="underline">Ir al chat</a>
+			</p>
+		{/if}
+	</section>
+
+	<section
+		class="rounded-lg border p-4"
+		style:border-color="var(--color-border)"
+		style:background-color="var(--color-surface)"
+	>
+		<h2 class="mb-3 text-sm font-medium">Apariencia</h2>
+		<ThemePicker onPersist={persistTheme} />
+	</section>
 
 	<section
 		class="flex flex-col gap-4 rounded-lg border p-4"

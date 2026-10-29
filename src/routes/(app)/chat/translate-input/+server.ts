@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { translateMessage } from '$lib/server/ai/translateMessage';
 import { LANGUAGES } from '$lib/languages';
 import type { RequestHandler } from './$types';
+import { requireNativeLanguage } from '$lib/server/user-language';
 
 export const POST: RequestHandler = async (event) => {
 	if (!event.locals.user) error(401, 'Unauthorized');
@@ -19,7 +20,7 @@ export const POST: RequestHandler = async (event) => {
 	const { translation } = await translateMessage(
 		event.locals.user.id,
 		text,
-		event.locals.user.nativeLanguage ?? 'English',
+		requireNativeLanguage(event.locals.user),
 		targetLanguage
 	);
 
