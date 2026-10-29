@@ -73,7 +73,7 @@ ${BETTER_AUTH_URL}/api/auth/oauth2/callback/seilide
 
 That gives the three `.env` lines: `SEILIDE_URL`, `SEILIDE_CLIENT_ID` and `SEILIDE_CLIENT_SECRET`. Langua asks for `openid profile email offline_access family`: `family` is what lets the person use the AI, and `offline_access` gives the refresh token.
 
-Seilide only accepts `https` callbacks that aren't localhost. In development, put the app behind a tunnel (e.g. `cloudflared tunnel --url http://localhost:5173`), set `BETTER_AUTH_URL` to its `https` URL and register that callback on a test client.
+Seilide only accepts `https` callbacks that aren't localhost. In development, put the app behind a tunnel (e.g. `cloudflared tunnel --url http://localhost:5173`), set `BETTER_AUTH_URL` to its `https` URL and register that callback on a test client. The fixed one is `langua-dev.scholio.review` (tunnel `langua-dev`, allowed in `vite.config.ts`): `cloudflared tunnel --config ~/.cloudflared/langua-dev.yml run`.
 
 ### AI
 
