@@ -57,9 +57,27 @@ and checks for `HTTP 200` explicitly. It also requires the **Auto Deploy** toggl
 
 Because Dokploy's native trigger also fires the instant it sees the push (before the image is built), expect **two deploys per push to `main`**: an early one that may grab the previous image, and this workflow's one, which always runs after the new image is confirmed on GHCR. With `pull_policy: always`, the second one re-pulls and wins — no need to disable the native trigger.
 
-## Accounts
+## Accounts: Seilide
 
-There is no public sign-up. The first account (admin) is created at `/setup` while the database has no users; after that, only an admin can add family members, from **Ajustes**. Both call `auth.api.signUpEmail` server-side, and better-auth's own HTTP endpoint (`/api/auth/sign-up/email`) is disabled via `disabledPaths` in `src/lib/server/auth-options.ts` — otherwise anyone who can reach the instance could create an account with a plain `curl`, whatever the UI allows.
+Langua is one instance for every family of Seilide (JellyCartoon's cloud). The only way in is **Entrar con Seilide** (OpenID Connect, better-auth's `genericOAuth` plugin in `src/lib/server/auth-options.ts`); the account is created on the first sign-in. There's no password, no `/setup` and no admin: two-step verification is Seilide's business, and each person's data stays theirs through RLS.
+
+An account that already exists is linked by email (`account.accountLinking`, `trustedProviders: ['seilide']`). Accounts created before Seilide have a `…@family.local` email, so give each its Seilide email first: `bun run scripts/link-seilide.ts <username> <email>`.
+
+### Creating the client in Seilide
+
+Seilide's service administrator creates it in `/admin/apps`, marked **para familias**, with Langua's callback:
+
+```
+${BETTER_AUTH_URL}/api/auth/oauth2/callback/seilide
+```
+
+That gives the three `.env` lines: `SEILIDE_URL`, `SEILIDE_CLIENT_ID` and `SEILIDE_CLIENT_SECRET`. Langua asks for `openid profile email offline_access family`: `family` is what lets the person use the AI, and `offline_access` gives the refresh token.
+
+Seilide only accepts `https` callbacks that aren't localhost. In development, put the app behind a tunnel (e.g. `cloudflared tunnel --url http://localhost:5173`), set `BETTER_AUTH_URL` to its `https` URL and register that callback on a test client. The fixed one is `langua-dev.scholio.review` (tunnel `langua-dev`, allowed in `vite.config.ts`): `cloudflared tunnel --config ~/.cloudflared/langua-dev.yml run`.
+
+### AI
+
+Every model call goes to Seilide (`${SEILIDE_URL}/api/ia/v1`, OpenAI-compatible) with the person's own access token and `X-Title: Langua`. Seilide calls OpenRouter with their family's key and books the cost under Gastos → IA; Langua never sees an OpenRouter key. `getChatModel(userId)` (`src/lib/server/ai/chat.ts`) gets the token from `auth.api.getAccessToken`, which refreshes it when the hour is up. The model is `OPENROUTER_MODEL`.
 
 ## Integrations API (JellyCartoon clips)
 

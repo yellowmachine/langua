@@ -22,6 +22,7 @@ export const POST: RequestHandler = async (event) => {
 	if (!item) error(404, 'Vocabulary item not found');
 
 	const { sentence, translation } = await generateExampleSentence(
+		event.locals.user.id,
 		item.word,
 		item.partOfSpeech,
 		item.targetLanguage,

@@ -22,12 +22,13 @@ export type WordAnalysis = z.infer<typeof wordAnalysisSchema>;
 
 /** Analyzes a single word a learner clicked on in a chat message, for the /chat word-lookup panel. */
 export async function analyzeWord(
+	userId: string,
 	word: string,
 	sentence: string,
 	targetLanguage: string,
 	nativeLanguage: string
 ): Promise<WordAnalysis> {
-	const model = await getChatModel();
+	const model = await getChatModel(userId);
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

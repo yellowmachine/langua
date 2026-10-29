@@ -38,7 +38,12 @@ export const actions: Actions = {
 			return fail(400, { message: 'Nivel inválido.' });
 		}
 
-		return await generateListeningExercise(targetLanguage, level, exerciseType || undefined);
+		return await generateListeningExercise(
+			locals.user.id,
+			targetLanguage,
+			level,
+			exerciseType || undefined
+		);
 	},
 
 	submit: async (event) => {

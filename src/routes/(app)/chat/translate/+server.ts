@@ -17,6 +17,7 @@ export const POST: RequestHandler = async (event) => {
 	}
 
 	const { translation } = await translateMessage(
+		event.locals.user.id,
 		text,
 		language,
 		event.locals.user.nativeLanguage ?? 'English'

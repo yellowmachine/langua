@@ -5,6 +5,10 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	// The cloudflared tunnel used in development: Seilide only sends sign-ins
+	// back to https URLs that aren't localhost (see README → Seilide).
+	server: { allowedHosts: ['langua-dev.scholio.review'] },
+	preview: { allowedHosts: ['langua-dev.scholio.review'] },
 	test: {
 		expect: { requireAssertions: true },
 		projects: [

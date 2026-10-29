@@ -11,10 +11,9 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import Mic from '@lucide/svelte/icons/mic';
-	import Settings from '@lucide/svelte/icons/settings';
 	import SpellCheck from '@lucide/svelte/icons/spell-check';
 
-	let { user }: { user: { name: string; role: string } } = $props();
+	let { user }: { user: { name: string } } = $props();
 
 	type NavLink = {
 		href: ReturnType<typeof resolve>;
@@ -22,7 +21,7 @@
 		icon: Component<{ class?: string }>;
 	};
 
-	const links: NavLink[] = $derived([
+	const links: NavLink[] = [
 		{ href: resolve('/chat'), label: 'Chat', icon: MessageCircle },
 		{ href: resolve('/listen'), label: 'Escuchar', icon: Headphones },
 		{ href: resolve('/clips'), label: 'Clips', icon: Clapperboard },
@@ -31,11 +30,8 @@
 		{ href: resolve('/correct'), label: 'Corregir', icon: SpellCheck },
 		{ href: resolve('/speak'), label: 'Hablar', icon: Mic },
 		{ href: resolve('/progress'), label: 'Progreso', icon: ChartLine },
-		{ href: resolve('/account'), label: 'Mi cuenta', icon: CircleUser },
-		...(user.role === 'admin'
-			? [{ href: resolve('/settings'), label: 'Ajustes', icon: Settings }]
-			: [])
-	]);
+		{ href: resolve('/account'), label: 'Mi cuenta', icon: CircleUser }
+	];
 
 	let menuOpen = $state(false);
 

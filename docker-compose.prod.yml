@@ -54,30 +54,6 @@ services:
       timeout: 5s
       retries: 5
 
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    profiles: ['local-ai']
-    volumes:
-      - ollama_data:/root/.ollama
-
-  ollama-pull:
-    image: ollama/ollama:latest
-    restart: 'no'
-    profiles: ['local-ai']
-    depends_on:
-      - ollama
-    environment:
-      OLLAMA_HOST: http://ollama:11434
-    entrypoint: ['/bin/sh', '-c']
-    command:
-      - |
-        until ollama list >/dev/null 2>&1; do
-          echo "waiting for ollama..."
-          sleep 2
-        done
-        ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b}
-
   tts:
     build: ./docker/tts
     restart: unless-stopped
@@ -159,12 +135,11 @@ services:
       DATABASE_URL: postgres://${APP_DB_USER:-langua_app}:${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env.prod}@postgres:5432/${POSTGRES_DB:-langua}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env.prod (openssl rand -base64 32)}
       BETTER_AUTH_URL: ${ORIGIN:-http://localhost:3000}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env.prod (openssl rand -base64 32)}
-      # Only reachable if the `local-ai` profile is enabled; harmless
-      # otherwise since chat falls back here only when no OpenRouter key/
-      # cloud mode is configured in Settings.
-      OLLAMA_BASE_URL: http://ollama:11434/v1
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+      # Sign-in and AI both go through Seilide; see README → Seilide.
+      SEILIDE_URL: ${SEILIDE_URL:?set SEILIDE_URL in .env.prod}
+      SEILIDE_CLIENT_ID: ${SEILIDE_CLIENT_ID:?set SEILIDE_CLIENT_ID in .env.prod}
+      SEILIDE_CLIENT_SECRET: ${SEILIDE_CLIENT_SECRET:?set SEILIDE_CLIENT_SECRET in .env.prod}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
       TTS_BASE_URL: http://tts:5000
       STT_BASE_URL: http://stt:8000
       STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
@@ -178,7 +153,6 @@ services:
 
 volumes:
   pgdata:
-  ollama_data:
   tts_voices:
   stt_models:
   audio_cache:

@@ -17,6 +17,11 @@ export const auth = betterAuth(
 	createAuthOptions({
 		db,
 		secret: process.env.BETTER_AUTH_SECRET ?? 'cli-only-placeholder',
-		baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:5173'
+		baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:5173',
+		seilide: {
+			url: process.env.SEILIDE_URL ?? 'https://seilide.app',
+			clientId: process.env.SEILIDE_CLIENT_ID ?? 'cli-only-placeholder',
+			clientSecret: process.env.SEILIDE_CLIENT_SECRET ?? 'cli-only-placeholder'
+		}
 	})
 );
