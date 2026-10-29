@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
-import { integrationToken } from '$lib/server/db/schema';
+import { db } from '$lib/server/db';
+import { integrationToken, user as userTable } from '$lib/server/db/schema';
 import { generateIntegrationToken } from '$lib/server/api-auth';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -25,6 +26,41 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
+	theme: async (event) => {
+		if (!event.locals.user) redirect(303, '/login');
+
+		const data = await event.request.formData();
+		const theme = String(data.get('theme') ?? 'warm');
+		const dark = data.get('dark') === '1';
+		const highContrast = data.get('highContrast') === '1';
+
+		await db
+			.update(userTable)
+			.set({ theme, dark, highContrast })
+			.where(eq(userTable.id, event.locals.user.id));
+	},
+
+	// Both are required: translations and explanations are written in the
+	// native one, and the chat practises the other (see the (app) layout).
+	language: async (event) => {
+		if (!event.locals.user) redirect(303, '/login');
+
+		const data = await event.request.formData();
+		const nativeLanguage = String(data.get('nativeLanguage') ?? '').trim();
+		const targetLanguage = String(data.get('targetLanguage') ?? '').trim();
+
+		if (!nativeLanguage || !targetLanguage) {
+			return fail(400, { formId: 'language', message: 'Elige los dos idiomas.' });
+		}
+
+		await db
+			.update(userTable)
+			.set({ nativeLanguage, targetLanguage })
+			.where(eq(userTable.id, event.locals.user.id));
+
+		return { formId: 'language', success: true };
+	},
+
 	// The token itself is only ever returned here, once — only its hash is stored.
 	createToken: async (event) => {
 		const data = await event.request.formData();

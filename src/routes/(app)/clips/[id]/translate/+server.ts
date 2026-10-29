@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { translateMessage } from '$lib/server/ai/translateMessage';
 import { loadClipCue } from '$lib/server/clip-cue';
 import type { RequestHandler } from './$types';
+import { requireNativeLanguage } from '$lib/server/user-language';
 
 export const POST: RequestHandler = async (event) => {
 	if (!event.locals.user) error(401, 'Unauthorized');
@@ -13,7 +14,7 @@ export const POST: RequestHandler = async (event) => {
 		event.locals.user.id,
 		text,
 		language,
-		event.locals.user.nativeLanguage ?? 'English'
+		requireNativeLanguage(event.locals.user)
 	);
 
 	return json({ translation });

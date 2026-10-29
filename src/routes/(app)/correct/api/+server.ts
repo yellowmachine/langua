@@ -3,6 +3,7 @@ import { correctWriting } from '$lib/server/ai/correctWriting';
 import { analyzeWritingStyle } from '$lib/server/ai/analyzeWritingStyle';
 import { LANGUAGES } from '$lib/languages';
 import type { RequestHandler } from './$types';
+import { requireNativeLanguage } from '$lib/server/user-language';
 
 export const POST: RequestHandler = async (event) => {
 	if (!event.locals.user) error(401, 'Unauthorized');
@@ -17,7 +18,7 @@ export const POST: RequestHandler = async (event) => {
 		error(400, 'Invalid language');
 	}
 
-	const nativeLanguage = event.locals.user.nativeLanguage ?? 'English';
+	const nativeLanguage = requireNativeLanguage(event.locals.user);
 
 	if (includeStyleAnalysis) {
 		const [correction, styleAnalysis] = await Promise.all([

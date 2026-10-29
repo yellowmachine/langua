@@ -4,6 +4,7 @@ import { analyzeWord, wordAnalysisSchema } from '$lib/server/ai/analyzeWord';
 import { chatConversation, vocabItem } from '$lib/server/db/schema';
 import { LANGUAGES } from '$lib/languages';
 import type { RequestHandler } from './$types';
+import { requireNativeLanguage } from '$lib/server/user-language';
 
 const PARTS_OF_SPEECH = wordAnalysisSchema.shape.partOfSpeech.options;
 
@@ -26,7 +27,7 @@ export const POST: RequestHandler = async (event) => {
 		word,
 		sentence,
 		targetLanguage,
-		event.locals.user.nativeLanguage ?? 'English'
+		requireNativeLanguage(event.locals.user)
 	);
 
 	return json(analysis);

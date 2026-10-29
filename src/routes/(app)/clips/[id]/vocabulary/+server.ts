@@ -4,6 +4,7 @@ import { clipSourceName } from '$lib/clips';
 import { extractVocabulary } from '$lib/server/ai/vocabulary';
 import { clip, vocabItem } from '$lib/server/db/schema';
 import type { RequestHandler } from './$types';
+import { requireNativeLanguage } from '$lib/server/user-language';
 
 // Same as /chat/vocabulary, over a clip's transcript: on demand, never as
 // part of the background transcription (it's an LLM call per clip).
@@ -35,7 +36,7 @@ export const POST: RequestHandler = async (event) => {
 		event.locals.user.id,
 		source.cues.map((cue) => cue.text).join('\n'),
 		language,
-		event.locals.user.nativeLanguage ?? 'English',
+		requireNativeLanguage(event.locals.user),
 		'clip'
 	);
 	if (items.length === 0) return json({ added: 0, total: 0 });

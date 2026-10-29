@@ -7,6 +7,8 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
+		"tunnel": "cloudflared tunnel --config $HOME/.cloudflared/langua-dev.yml run langua-dev",
+		"preview:tunnel": "vite build && PORT=5173 ORIGIN=https://langua-dev.scholio.review node --env-file=.env build",
 		"prepare": "svelte-kit sync || echo '' && husky",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
