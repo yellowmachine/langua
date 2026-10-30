@@ -132,7 +132,7 @@
 
 		{#if exercise}
 			<div class="flex items-center gap-2">
-				<SpeakButton text={exercise.passage} language={exercise.language} />
+				<SpeakButton text={exercise.passage} language={exercise.language} style="narration" />
 				<span class="text-sm" style:color="var(--color-ink-muted)">Escucha el audio</span>
 			</div>
 

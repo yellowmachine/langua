@@ -166,7 +166,7 @@
 								>
 									<div class="flex flex-wrap items-center gap-2">
 										<span class="font-medium">{item.word}</span>
-										<SpeakButton text={item.word} language={item.targetLanguage} />
+										<SpeakButton text={item.word} language={item.targetLanguage} style="word" />
 										<span style:color="var(--color-ink-muted)">— {item.translation}</span>
 									</div>
 

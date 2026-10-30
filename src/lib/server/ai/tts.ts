@@ -1,20 +1,44 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { englishNameForLanguage } from '$lib/languages';
+import { accentFor, DEFAULT_VOICE, type SpeechStyle, type VoiceId } from '$lib/voices';
 import { getSeilideAccessToken } from './chat';
 
 const AUDIO_CACHE_DIR = env.AUDIO_CACHE_DIR ?? './data/audio';
 
-// Same model and voice Seilide uses for its own speech. Gemini's voices are
-// multilingual: the language comes from the text, steered by the instructions.
+// Same model Seilide uses for its own speech. Gemini's voices are
+// multilingual: the language, accent, tone and pace come from the
+// instructions, which are not read aloud.
 const TTS_MODEL = env.TTS_MODEL ?? 'google/gemini-3.8-flash-tts';
-const TTS_VOICE = env.TTS_VOICE ?? 'Kore';
 
-function instructionsFor(language?: string | null): string {
-	return `Read this aloud in ${englishNameForLanguage(language)} with a native accent, clearly and naturally, at a calm pace for a language learner.`;
+export interface SpeechOptions {
+	language?: string | null;
+	voice?: VoiceId | null;
+	/** One of the language's in src/lib/voices.ts; another falls back to its default. */
+	accent?: string | null;
+	style?: SpeechStyle;
+	/** «Repetir despacio»: said slowly, every syllable, for a beginner. */
+	slow?: boolean;
+}
+
+const STYLE_INSTRUCTIONS: Record<SpeechStyle, string> = {
+	conversation:
+		'Speak it as a friendly native speaker in a relaxed conversation, with natural, expressive intonation.',
+	narration:
+		'Read it like a clear, neutral recording for a listening-comprehension exercise: even intonation, well-separated sentences.',
+	word: 'Say this word or short phrase on its own, carefully, as in a pronunciation dictionary.'
+};
+
+export function instructionsFor(options: SpeechOptions): string {
+	const accent = accentFor(options.language, options.accent);
+	const variety = accent?.description ?? englishNameForLanguage(options.language);
+	const pace = options.slow
+		? 'Speak slowly, articulating every syllable, with short pauses between phrases, so a beginner can follow every sound, yet still sounding natural, not robotic.'
+		: 'Keep a calm, natural pace for a language learner.';
+	return `Read this aloud in ${variety}, with a native accent. ${STYLE_INSTRUCTIONS[options.style ?? 'conversation']} ${pace}`;
 }
 
 function cachePathFor(model: string, voice: string, instructions: string, text: string): string {
@@ -48,19 +72,25 @@ export function pcmToWav(pcm: Uint8Array, sampleRate: number): Uint8Array {
 	return wav;
 }
 
+// Phrases being synthesized right now, by cache path: a second request for
+// one (a double click, autoplay and the button at once, two users) waits for
+// the first instead of paying for it again.
+const inFlight = new Map<string, Promise<Uint8Array>>();
+
 /**
  * Speech from Seilide's AI endpoint (OpenRouter's TTS, paid for by the
  * user's family), cached on disk by (model, voice, instructions, text) hash
- * so repeated phrases — common in a language-learning app — aren't paid for
- * twice.
+ * — shared by every user — so repeated phrases, common in a
+ * language-learning app, are paid for once.
  */
 export async function synthesizeSpeech(
 	userId: string,
 	text: string,
-	language?: string | null
+	options: SpeechOptions = {}
 ): Promise<Uint8Array> {
-	const instructions = instructionsFor(language);
-	const cachePath = cachePathFor(TTS_MODEL, TTS_VOICE, instructions, text);
+	const voice = options.voice ?? DEFAULT_VOICE;
+	const instructions = instructionsFor(options);
+	const cachePath = cachePathFor(TTS_MODEL, voice, instructions, text);
 
 	try {
 		return await readFile(cachePath);
@@ -68,6 +98,23 @@ export async function synthesizeSpeech(
 		// not cached yet, fall through to synthesis
 	}
 
+	let pending = inFlight.get(cachePath);
+	if (!pending) {
+		pending = synthesizeToCache(userId, text, voice, instructions, cachePath).finally(() =>
+			inFlight.delete(cachePath)
+		);
+		inFlight.set(cachePath, pending);
+	}
+	return pending;
+}
+
+async function synthesizeToCache(
+	userId: string,
+	text: string,
+	voice: string,
+	instructions: string,
+	cachePath: string
+): Promise<Uint8Array> {
 	const accessToken = await getSeilideAccessToken(userId);
 	const response = await fetch(`${env.SEILIDE_URL}/api/ia/v1/audio/speech`, {
 		method: 'POST',
@@ -78,7 +125,7 @@ export async function synthesizeSpeech(
 		},
 		body: JSON.stringify({
 			model: TTS_MODEL,
-			voice: TTS_VOICE,
+			voice,
 			input: text,
 			instructions,
 			response_format: 'pcm'
@@ -97,8 +144,12 @@ export async function synthesizeSpeech(
 	const rate = Number(/rate=(\d+)/.exec(response.headers.get('content-type') ?? '')?.[1]) || 24_000;
 	const audio = pcmToWav(new Uint8Array(await response.arrayBuffer()), rate);
 
+	// Written aside and renamed into place, so a concurrent read never finds
+	// half a file.
 	await mkdir(AUDIO_CACHE_DIR, { recursive: true });
-	await writeFile(cachePath, audio);
+	const partial = `${cachePath}.${crypto.randomUUID()}.part`;
+	await writeFile(partial, audio);
+	await rename(partial, cachePath);
 
 	return audio;
 }

@@ -11,7 +11,7 @@ vi.mock('$env/dynamic/private', () => ({
 }));
 vi.mock('../auth', () => ({ auth: { api: { getAccessToken } } }));
 
-const { pcmToWav, synthesizeSpeech } = await import('./tts');
+const { instructionsFor, pcmToWav, synthesizeSpeech } = await import('./tts');
 
 function pcm(bytes: number[]) {
 	return new Response(new Uint8Array(bytes), {
@@ -43,13 +43,29 @@ describe('pcmToWav', () => {
 	});
 });
 
+describe('instructionsFor', () => {
+	it("uses the chosen accent, or the language's default for a foreign one", () => {
+		expect(instructionsFor({ language: 'es', accent: 'es-AR' })).toContain('Rioplatense');
+		expect(instructionsFor({ language: 'es', accent: 'en-GB' })).toContain('Spain');
+		expect(instructionsFor({ language: 'pt' })).toContain('Brazilian');
+	});
+
+	it('changes tone with the style and pace with slow', () => {
+		expect(instructionsFor({ language: 'en', style: 'word' })).toContain('dictionary');
+		expect(instructionsFor({ language: 'en', style: 'narration' })).toContain('listening');
+		expect(instructionsFor({ language: 'en' })).toContain('conversation');
+		expect(instructionsFor({ language: 'en', slow: true })).toContain('syllable');
+		expect(instructionsFor({ language: 'en' })).not.toContain('syllable');
+	});
+});
+
 describe('synthesizeSpeech', () => {
 	it("asks Seilide's speech endpoint with the user's token, as a WAV at the returned rate", async () => {
 		getAccessToken.mockResolvedValue({ accessToken: 'seilide-token' });
 		const fetchMock = vi.fn(async () => pcm([9, 9]));
 		vi.stubGlobal('fetch', fetchMock);
 
-		const audio = await synthesizeSpeech('user-1', 'Ciao!', 'it');
+		const audio = await synthesizeSpeech('user-1', 'Ciao!', { language: 'it' });
 
 		expect(getAccessToken).toHaveBeenCalledWith({
 			body: { providerId: 'seilide', userId: 'user-1' }
@@ -59,8 +75,8 @@ describe('synthesizeSpeech', () => {
 		expect(new Headers(init.headers).get('authorization')).toBe('Bearer seilide-token');
 		expect(new Headers(init.headers).get('x-title')).toBe('Langua');
 		const body = JSON.parse(init.body as string);
-		expect(body).toMatchObject({ input: 'Ciao!', response_format: 'pcm' });
-		expect(body.instructions).toContain('Italian');
+		expect(body).toMatchObject({ input: 'Ciao!', voice: 'Kore', response_format: 'pcm' });
+		expect(body.instructions).toContain('Standard Italian');
 		expect(new DataView(audio.buffer).getUint32(24, true)).toBe(16_000);
 		expect([...audio.slice(44)]).toEqual([9, 9]);
 	});
@@ -70,12 +86,44 @@ describe('synthesizeSpeech', () => {
 		const fetchMock = vi.fn(async () => pcm([1, 2]));
 		vi.stubGlobal('fetch', fetchMock);
 
-		const first = await synthesizeSpeech('user-1', 'Hola', 'es');
-		const second = await synthesizeSpeech('user-2', 'Hola', 'es');
+		const first = await synthesizeSpeech('user-1', 'Hola', { language: 'es' });
+		const second = await synthesizeSpeech('user-2', 'Hola', { language: 'es' });
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		expect([...second]).toEqual([...first]);
 		expect(await readdir(cacheDir)).toHaveLength(1);
+	});
+
+	it('asks once for the same phrase requested twice at the same time', async () => {
+		getAccessToken.mockResolvedValue({ accessToken: 'seilide-token' });
+		const fetchMock = vi.fn(async () => pcm([5, 6]));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const [first, second] = await Promise.all([
+			synthesizeSpeech('user-1', 'Buongiorno', { language: 'it' }),
+			synthesizeSpeech('user-2', 'Buongiorno', { language: 'it' })
+		]);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect([...second]).toEqual([...first]);
+		expect(await readdir(cacheDir)).toEqual([expect.stringMatching(/^[0-9a-f]{64}\.wav$/)]);
+	});
+
+	it('caches each voice, accent and pace apart', async () => {
+		getAccessToken.mockResolvedValue({ accessToken: 'seilide-token' });
+		const fetchMock = vi.fn(async () => pcm([1, 2]));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await synthesizeSpeech('user-1', 'Hola', { language: 'es' });
+		await synthesizeSpeech('user-1', 'Hola', { language: 'es', voice: 'Puck' });
+		await synthesizeSpeech('user-1', 'Hola', { language: 'es', accent: 'es-AR' });
+		await synthesizeSpeech('user-1', 'Hola', { language: 'es', slow: true });
+
+		expect(fetchMock).toHaveBeenCalledTimes(4);
+		const voices = fetchMock.mock.calls.map(
+			(call) => JSON.parse((call as unknown as [string, RequestInit])[1].body as string).voice
+		);
+		expect(voices).toEqual(['Kore', 'Puck', 'Kore', 'Kore']);
 	});
 
 	it("fails with Seilide's reason and caches nothing when it refuses", async () => {
@@ -91,7 +139,7 @@ describe('synthesizeSpeech', () => {
 		);
 		vi.spyOn(console, 'error').mockImplementation(() => {});
 
-		await expect(synthesizeSpeech('user-1', 'Hello', 'en')).rejects.toMatchObject({
+		await expect(synthesizeSpeech('user-1', 'Hello', { language: 'en' })).rejects.toMatchObject({
 			status: 502,
 			body: { message: 'No se ha podido generar la voz: No queda saldo en OpenRouter' }
 		});

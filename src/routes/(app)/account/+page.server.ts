@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { integrationToken, user as userTable } from '$lib/server/db/schema';
 import { generateIntegrationToken } from '$lib/server/api-auth';
+import { ACCENTS, isVoice } from '$lib/voices';
 import type { Actions, PageServerLoad } from './$types';
 
 const MAX_TOKEN_NAME_LENGTH = 60;
@@ -59,6 +60,27 @@ export const actions: Actions = {
 			.where(eq(userTable.id, event.locals.user.id));
 
 		return { formId: 'language', success: true };
+	},
+
+	// The accent is the target language's: one of another language is dropped.
+	voice: async (event) => {
+		if (!event.locals.user) redirect(303, '/login');
+
+		const data = await event.request.formData();
+		const voice = String(data.get('voice') ?? '');
+		const accent = String(data.get('accent') ?? '');
+		const accents = ACCENTS[event.locals.user.targetLanguage ?? ''] ?? [];
+
+		if (!isVoice(voice)) {
+			return fail(400, { formId: 'voice', message: 'Elige una de las voces.' });
+		}
+
+		await db
+			.update(userTable)
+			.set({ voice, accent: accents.some((a) => a.code === accent) ? accent : null })
+			.where(eq(userTable.id, event.locals.user.id));
+
+		return { formId: 'voice', success: true };
 	},
 
 	// The token itself is only ever returned here, once — only its hash is stored.
