@@ -11,7 +11,11 @@ export const GET: RequestHandler = async (event) => {
 	const language = event.url.searchParams.get('language');
 	if (!text) error(400, 'text is required');
 
-	const audio = await synthesizeSpeech(text.slice(0, MAX_TEXT_LENGTH), language);
+	const audio = await synthesizeSpeech(
+		event.locals.user.id,
+		text.slice(0, MAX_TEXT_LENGTH),
+		language
+	);
 
 	return new Response(new Blob([new Uint8Array(audio)]), {
 		headers: {

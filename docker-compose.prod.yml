@@ -24,9 +24,10 @@ name: langua-prod
 #
 # Ollama (local LLM fallback for chat) is gated behind the `local-ai` Compose
 # profile — it's the one service here heavy enough (2-4GB+ RAM just to load
-# a small model) to matter on a modest VPS. STT/TTS stay always-on: they're
-# CPU-only and lightweight (faster-whisper-small, Piper) and have no cloud
-# fallback implemented yet. Add `--profile local-ai` to the `up` command (or
+# a small model) to matter on a modest VPS. STT stays always-on: it's
+# CPU-only and lightweight (faster-whisper-small) and has no cloud fallback
+# implemented yet. TTS has no service here: it goes through Seilide's AI
+# endpoint, like the chat. Add `--profile local-ai` to the `up` command (or
 # set COMPOSE_PROFILES=local-ai in .env.prod) to run Ollama too; without it,
 # configure an OpenRouter key in Settings after first deploy so chat has a
 # provider to talk to.
@@ -53,12 +54,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  tts:
-    build: ./docker/tts
-    restart: unless-stopped
-    volumes:
-      - tts_voices:/data/voices
 
   stt:
     image: fedirz/faster-whisper-server:latest-cpu
@@ -124,8 +119,6 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-      tts:
-        condition: service_started
       stt:
         condition: service_started
     environment:
@@ -140,7 +133,6 @@ services:
       SEILIDE_CLIENT_ID: ${SEILIDE_CLIENT_ID:?set SEILIDE_CLIENT_ID in .env.prod}
       SEILIDE_CLIENT_SECRET: ${SEILIDE_CLIENT_SECRET:?set SEILIDE_CLIENT_SECRET in .env.prod}
       OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
-      TTS_BASE_URL: http://tts:5000
       STT_BASE_URL: http://stt:8000
       STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
       AUDIO_CACHE_DIR: /data/audio
@@ -153,7 +145,6 @@ services:
 
 volumes:
   pgdata:
-  tts_voices:
   stt_models:
   audio_cache:
   clips_data:

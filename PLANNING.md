@@ -32,14 +32,14 @@ ai/chat.ts
   si no                        → baseURL: http://ollama:11434/v1, key: "ollama" (dummy)
 ```
 
-Para voz: **OpenRouter no hace STT/TTS**, solo LLMs de texto. Por eso:
+Para voz:
 
-- El chat usa la key de OpenRouter tal cual.
-- STT/TTS locales corren detrás de servidores con **API compatible OpenAI**
-  (faster-whisper-server para STT, Piper detrás de un wrapper HTTP simple para
-  TTS). Si se quiere voz cloud, se configura **una key adicional e
-  independiente** (p. ej. OpenAI o Groq para STT, ElevenLabs/OpenAI para TTS),
-  con el mismo fallback a local si no está.
+- STT local corre detrás de un servidor con **API compatible OpenAI**
+  (faster-whisper-server).
+- TTS va a la nube, como el chat: el endpoint `audio/speech` de Seilide
+  (OpenRouter, con la key de la familia; modelo `google/gemini-3.8-flash-tts`).
+  Piper se quitó (oct. 2026): con las 6 voces cargadas ocupaba ~950 MiB de RAM
+  en el VPS y sonaba bastante peor.
 
 Las API keys se guardan **cifradas en la base de datos** (no en `.env`), para
 que cualquier adulto de la familia pueda configurarlas desde Ajustes sin tocar
@@ -56,7 +56,6 @@ Vitest + Playwright + mdsvex. Se añade:
 | `postgres` | `postgres:16`                             | datos                                                             |
 | `ollama`   | `ollama/ollama`                           | LLM local (fallback chat), modelo pequeño multilingüe por defecto |
 | `stt`      | faster-whisper-server (API OpenAI-compat) | transcripción local                                               |
-| `tts`      | Piper + wrapper HTTP                      | síntesis de voz local, multi-idioma, ligero                       |
 
 Redis/cola de trabajos queda **fuera del MVP**: si la síntesis local resulta
 lenta, se añade después para no bloquear la UI. Tampoco hace falta MinIO/S3 a
@@ -122,7 +121,7 @@ del tema, pensado para accesibilidad WCAG. Cada miembro elige su propio tema
    objetivo por usuario.
 2. **Chat IA (texto)** — abstracción de provider, servicio `ollama` en
    compose, pantalla de chat, ajuste de API key de OpenRouter en Settings.
-3. **Voz de salida (TTS)** — servicio `tts`, botón "escuchar" en mensajes del
+3. **Voz de salida (TTS)** — TTS cloud vía Seilide, botón "escuchar" en mensajes del
    chat, caché de audio.
 4. **Voz de entrada (STT) + módulo Hablar** — servicio `stt`, grabación en el
    navegador, comparación con frase objetivo, feedback.
@@ -144,8 +143,7 @@ puertos publicados al host). El despliegue real usa dos piezas nuevas:
   paquete que el servidor importe en runtime (`svelte`, `@sveltejs/kit`,
   `drizzle-orm`, `postgres`...) tiene que estar en `dependencies`, no en
   `devDependencies`, o el contenedor de producción revienta al arrancar.
-- `docker-compose.prod.yml` — stack completo (`postgres`, `ollama`, `tts`,
-  `stt`, `migrate` uno-shot, `app`) en una red interna; solo el puerto de
+- `docker-compose.prod.yml` — stack completo (`postgres`, `ollama`, `stt`, `migrate` uno-shot, `app`) en una red interna; solo el puerto de
   `app` llega al host. Nombre de proyecto propio (`langua-prod`) y volúmenes
   separados de `compose.yaml`, para no pisar los datos de desarrollo.
   Variables en `.env.prod` (plantilla en `.env.prod.example`, sin defaults

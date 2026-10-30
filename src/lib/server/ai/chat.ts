@@ -31,11 +31,11 @@ export function createSeilideModel(params: {
 }
 
 /**
- * The model, on behalf of `userId`: the request is paid for by that user's
- * family in Seilide. getAccessToken refreshes the 1-hour access token with
- * the stored refresh token when it has expired.
+ * `userId`'s Seilide access token, for its AI endpoints: what they ask is
+ * paid for by that user's family. getAccessToken refreshes the 1-hour access
+ * token with the stored refresh token when it has expired.
  */
-export async function getChatModel(userId: string) {
+export async function getSeilideAccessToken(userId: string): Promise<string> {
 	let accessToken: string | undefined;
 	try {
 		({ accessToken } = await auth.api.getAccessToken({
@@ -45,6 +45,12 @@ export async function getChatModel(userId: string) {
 		// No Seilide account linked, or the refresh token was revoked.
 	}
 	if (!accessToken) error(401, 'Tu sesión con Seilide ha caducado. Sal y vuelve a entrar.');
+	return accessToken;
+}
+
+/** The model, on behalf of `userId` (see getSeilideAccessToken). */
+export async function getChatModel(userId: string) {
+	const accessToken = await getSeilideAccessToken(userId);
 
 	return createSeilideModel({
 		seilideUrl: env.SEILIDE_URL!,

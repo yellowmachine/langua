@@ -19,14 +19,6 @@ services:
       timeout: 5s
       retries: 5
 
-  tts:
-    build: ./docker/tts
-    restart: unless-stopped
-    ports:
-      - 5002:5000
-    volumes:
-      - tts_voices:/data/voices
-
   stt:
     image: fedirz/faster-whisper-server:latest-cpu
     restart: unless-stopped
@@ -58,5 +50,4 @@ services:
 
 volumes:
   pgdata:
-  tts_voices:
   stt_models:
