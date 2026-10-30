@@ -50,6 +50,14 @@ export function createAuthOptions(params: {
 				highContrast: {
 					type: 'boolean',
 					defaultValue: false
+				},
+				voice: {
+					type: 'string',
+					required: false
+				},
+				accent: {
+					type: 'string',
+					required: false
 				}
 			}
 		},

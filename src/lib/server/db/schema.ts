@@ -52,7 +52,10 @@ export const user = pgTable('user', {
 	targetLanguage: text('target_language'),
 	theme: text('theme').default('warm'),
 	dark: boolean('dark').default(false),
-	highContrast: boolean('high_contrast').default(false)
+	highContrast: boolean('high_contrast').default(false),
+	// Speech (Mi cuenta → Voz, src/lib/voices.ts): null is the default.
+	voice: text('voice'),
+	accent: text('accent')
 });
 
 export const session = pgTable(

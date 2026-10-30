@@ -3,12 +3,19 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import ThemePicker from '$lib/components/ThemePicker.svelte';
+	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import { LANGUAGES } from '$lib/languages';
+	import { ACCENTS, DEFAULT_VOICE, VOICE_SAMPLES, VOICES, accentFor } from '$lib/voices';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
 	let missingLanguages = $derived(!data.user.nativeLanguage || !data.user.targetLanguage);
+
+	let targetAccents = $derived(ACCENTS[data.user.targetLanguage ?? ''] ?? []);
+	let targetLanguageLabel = $derived(
+		LANGUAGES.find((lang) => lang.code === data.user.targetLanguage)?.label ?? ''
+	);
 
 	async function persistTheme(state: { theme: string; dark: boolean; highContrast: boolean }) {
 		const body = new FormData();
@@ -119,6 +126,84 @@
 			<p class="text-sm" style:color="var(--color-accent)">
 				Guardado. <a href={resolve('/chat')} class="underline">Ir al chat</a>
 			</p>
+		{/if}
+	</section>
+
+	<section
+		class="flex flex-col gap-3 rounded-lg border p-4"
+		style:border-color="var(--color-border)"
+		style:background-color="var(--color-surface)"
+	>
+		<div>
+			<h2 class="mb-1 text-sm font-medium">Voz</h2>
+			<p class="text-sm" style:color="var(--color-ink-muted)">
+				Quién te lee los textos y con qué acento. Junto a cada «Escuchar» tienes la tortuga, para
+				oírlo otra vez despacio.
+			</p>
+		</div>
+		<form
+			method="POST"
+			action="?/voice"
+			use:enhance={() => {
+				return async ({ update }) => {
+					// As above: keep the <select>s on what was just saved.
+					await update({ reset: false });
+				};
+			}}
+			class="flex flex-col gap-3 sm:flex-row"
+		>
+			<label class="flex flex-1 flex-col gap-1 text-sm">
+				Voz
+				<select
+					name="voice"
+					value={data.user.voice ?? DEFAULT_VOICE}
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				>
+					{#each VOICES as voice (voice.id)}
+						<option value={voice.id}>{voice.label}</option>
+					{/each}
+				</select>
+			</label>
+			{#if targetAccents.length > 1}
+				<label class="flex flex-1 flex-col gap-1 text-sm">
+					Acento del {targetLanguageLabel.toLowerCase()}
+					<select
+						name="accent"
+						value={accentFor(data.user.targetLanguage, data.user.accent)?.code}
+						class="rounded-md border px-3 py-2"
+						style:border-color="var(--color-border)"
+						style:background-color="var(--color-background)"
+					>
+						{#each targetAccents as accent (accent.code)}
+							<option value={accent.code}>{accent.label}</option>
+						{/each}
+					</select>
+				</label>
+			{/if}
+			<button
+				type="submit"
+				class="self-end rounded-md px-3 py-2 text-sm font-medium text-white"
+				style:background-color="var(--color-accent)"
+			>
+				Guardar
+			</button>
+		</form>
+		{#if messageFor('voice')}
+			<p class="text-sm text-red-600">{messageFor('voice')}</p>
+		{/if}
+		{#if data.user.targetLanguage && VOICE_SAMPLES[data.user.targetLanguage]}
+			<div class="flex items-center gap-3 text-sm">
+				<SpeakButton
+					text={VOICE_SAMPLES[data.user.targetLanguage]}
+					language={data.user.targetLanguage}
+				/>
+				<span style:color="var(--color-ink-muted)">
+					{form?.formId === 'voice' && 'success' in form ? 'Guardado. ' : ''}Prueba cómo suena lo
+					guardado.
+				</span>
+			</div>
 		{/if}
 	</section>
 
