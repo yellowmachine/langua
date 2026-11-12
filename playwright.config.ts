@@ -7,6 +7,8 @@ import { APP_PORT, appEnv, FAKE_SEILIDE_PORT, STORAGE_STATE } from './e2e/env';
 export default defineConfig({
 	testDir: 'e2e',
 	testMatch: '**/*.e2e.{ts,js}',
+	// The tests share one database and one signed-in member.
+	workers: 1,
 	globalSetup: './e2e/global-setup.ts',
 	globalTeardown: './e2e/global-teardown.ts',
 	use: { baseURL: `http://localhost:${APP_PORT}`, storageState: STORAGE_STATE },

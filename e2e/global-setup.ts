@@ -53,6 +53,26 @@ export default async function globalSetup() {
 		expiresAt: tomorrow
 	});
 
+	const vocab = { userId, targetLanguage: 'en', partOfSpeech: 'noun' as const };
+	await owner.insert(schema.vocabItem).values([
+		{
+			id: 'vocab-cat',
+			lemma: 'cat',
+			word: 'cat',
+			translation: 'gato',
+			exampleSentence: 'The cat sleeps.',
+			...vocab
+		},
+		{
+			id: 'vocab-dog',
+			lemma: 'dog',
+			word: 'dog',
+			translation: 'perro',
+			exampleSentence: 'A dog barks.',
+			...vocab
+		}
+	]);
+
 	// better-auth's session cookie: `${token}.${base64 HMAC-SHA256}`, URL-encoded.
 	const signature = createHmac('sha256', AUTH_SECRET).update(SESSION_TOKEN).digest('base64');
 	await mkdir(dirname(STORAGE_STATE), { recursive: true });

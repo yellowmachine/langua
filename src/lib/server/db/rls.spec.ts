@@ -71,6 +71,10 @@ describe.skipIf(!canRun)('row-level security', () => {
 			{ id: 'listen-a', userId: A, ...attempt },
 			{ id: 'listen-b', userId: B, ...attempt }
 		]);
+		await owner.insert(schema.vocabReview).values([
+			{ id: 'review-a', userId: A, vocabItemId: 'vocab-a', rating: 3 },
+			{ id: 'review-b', userId: B, vocabItemId: 'vocab-b', rating: 3 }
+		]);
 		const exercise = { targetLanguage: 'en', passage: 'p', questions: [] };
 		await owner.insert(schema.listeningExercise).values([
 			{ id: 'exercise-a', userId: A, ...exercise },
@@ -109,6 +113,7 @@ describe.skipIf(!canRun)('row-level security', () => {
 		['chat_conversation', schema.chatConversation, 'conv-a'],
 		['chat_message', schema.chatMessage, 'msg-a'],
 		['vocab_item', schema.vocabItem, 'vocab-a'],
+		['vocab_review', schema.vocabReview, 'review-a'],
 		['listening_attempt', schema.listeningAttempt, 'listen-a'],
 		['listening_exercise', schema.listeningExercise, 'exercise-a'],
 		['clip', schema.clip, 'clip-a'],

@@ -63,11 +63,13 @@
 		"@sveltejs/kit": "^2.70.1",
 		"ai": "^7.0.37",
 		"better-auth": "^1.6.25",
+		"diff": "^9.0.0",
 		"drizzle-orm": "^0.45.2",
 		"focus-trap": "^8.2.4",
 		"postgres": "^3.4.9",
 		"qrcode": "^1.5.4",
 		"svelte": "^5.56.1",
+		"ts-fsrs": "^6.0.0",
 		"zod": "^4.4.3"
 	},
 	"lint-staged": {

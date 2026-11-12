@@ -13,6 +13,19 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { HighlightError } from '$lib/textHighlight';
 
+/** ts-fsrs card, with its dates as ISO strings (it's stored as JSON). */
+export type SrsCard = {
+	due: string;
+	stability: number;
+	difficulty: number;
+	scheduled_days: number;
+	learning_steps: number;
+	reps: number;
+	lapses: number;
+	state: number;
+	last_review?: string;
+};
+
 export type ListeningQuestionResult = {
 	question: string;
 	options: string[];
@@ -373,10 +386,15 @@ export const vocabItem = pgTable(
 			onDelete: 'set null'
 		}),
 		sourceClipId: text('source_clip_id').references(() => clip.id, { onDelete: 'set null' }),
+		// Spaced repetition (ts-fsrs, src/lib/server/srs.ts): when it's next
+		// due, and the scheduler's card state (null until its first review).
+		dueAt: timestamp('due_at').defaultNow().notNull(),
+		srs: jsonb('srs').$type<SrsCard>(),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(t) => [
 		index('vocab_item_user_idx').on(t.userId),
+		index('vocab_item_user_due_idx').on(t.userId, t.dueAt),
 		uniqueIndex('vocab_item_user_lang_lemma_idx').on(t.userId, t.targetLanguage, t.lemma),
 		pgPolicy('vocab_item_access', {
 			for: 'all',
@@ -399,3 +417,28 @@ export const vocabItemRelations = relations(vocabItem, ({ one }) => ({
 		references: [clip.id]
 	})
 }));
+
+// One row per flashcard answer: what Progreso counts as review activity
+// (and what an FSRS optimizer would learn from later).
+export const vocabReview = pgTable(
+	'vocab_review',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		vocabItemId: text('vocab_item_id')
+			.notNull()
+			.references(() => vocabItem.id, { onDelete: 'cascade' }),
+		/** ts-fsrs Rating: 1 again, 2 hard, 3 good, 4 easy. */
+		rating: integer('rating').notNull(),
+		reviewedAt: timestamp('reviewed_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('vocab_review_user_idx').on(t.userId, t.reviewedAt),
+		pgPolicy('vocab_review_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
