@@ -122,7 +122,7 @@ services:
       SEILIDE_URL: ${SEILIDE_URL:?set SEILIDE_URL in .env.prod}
       SEILIDE_CLIENT_ID: ${SEILIDE_CLIENT_ID:?set SEILIDE_CLIENT_ID in .env.prod}
       SEILIDE_CLIENT_SECRET: ${SEILIDE_CLIENT_SECRET:?set SEILIDE_CLIENT_SECRET in .env.prod}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-anthropic/claude-haiku-5.5}
       STT_BASE_URL: http://stt:8000
       STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
       AUDIO_CACHE_DIR: /data/audio

@@ -4,7 +4,7 @@ import { env } from '$env/dynamic/private';
 import { auth } from '../auth';
 import { SEILIDE_PROVIDER_ID } from '../auth-options';
 
-const OPENROUTER_MODEL = env.OPENROUTER_MODEL ?? 'openai/gpt-4o-mini';
+const OPENROUTER_MODEL = env.OPENROUTER_MODEL || 'anthropic/claude-haiku-5.5';
 
 /**
  * Seilide's AI endpoint, OpenAI-compatible: it calls OpenRouter with the
