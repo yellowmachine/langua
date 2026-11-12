@@ -5,8 +5,9 @@
 	import { announcer } from '$lib/announcer.svelte';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import WordPanel, { type WordLookup } from '$lib/components/WordPanel.svelte';
@@ -56,9 +57,17 @@
 	let conversationsOpen = $state(false);
 	let wordPanelOpen = $state(false);
 
-	let chat = $derived(
-		new Chat({
-			id: data.activeId ?? undefined,
+	// One Chat per conversation: rebuilt only when the conversation changes,
+	// not on every invalidate (deleting another conversation, say), which
+	// would drop a reply that is still streaming in.
+	let chat = $derived.by(() => {
+		const id = data.activeId ?? undefined;
+		return untrack(() => createChat(id));
+	});
+
+	function createChat(id: string | undefined) {
+		return new Chat({
+			id,
 			messages: data.messages,
 			transport: new DefaultChatTransport({ api: resolve('/chat/api') }),
 			onFinish: ({ message, isAbort, isError }) => {
@@ -70,16 +79,30 @@
 				if (!text) return;
 				announcer.say(`Tutor: ${text}`);
 				if (autoPlay) {
-					fetchSpeechAudio(text, data.activeConversation?.targetLanguage).then((audio) =>
-						audio?.play()
-					);
+					// play() is refused without a recent click (autoplay policy):
+					// the speaker button is still there.
+					fetchSpeechAudio(text, data.activeConversation?.targetLanguage)
+						.then((audio) => audio?.play())
+						.catch(() => {});
 				}
 				if (quickReplies) {
 					fetchSuggestions(message.id, text);
 				}
 			}
-		})
-	);
+		});
+	}
+
+	// What belongs to the conversation on screen starts over with another one.
+	afterNavigate(({ from, to }) => {
+		if (from?.params?.id === to?.params?.id) return;
+		vocabExtraction = 'idle';
+		wordLookup = 'idle';
+		wordPanelOpen = false;
+		expandedTranslation = {};
+		sessionSuggestions = {};
+		lastSent = '';
+		input = '';
+	});
 
 	let input = $state('');
 	let busy = $derived(chat.status === 'streaming' || chat.status === 'submitted');
@@ -102,6 +125,12 @@
 			.then((response) => {
 				if (!response.ok) throw new Error(String(response.status));
 				return invalidateAll();
+			})
+			.then(() => {
+				// The Chat outlives invalidations: give it the opening message.
+				if (data.activeId === conversationId && chat.messages.length === 0) {
+					chat.messages = data.messages;
+				}
 			})
 			.catch(() => {
 				startFailedFor = conversationId;
