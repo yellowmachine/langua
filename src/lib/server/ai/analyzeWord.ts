@@ -28,7 +28,7 @@ export async function analyzeWord(
 	targetLanguage: string,
 	nativeLanguage: string
 ): Promise<WordAnalysis> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'word');
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

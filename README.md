@@ -1,45 +1,50 @@
-# sv
+# Langua
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
-
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-bun x sv@0.16.3 create --template minimal --types ts --add prettier eslint vitest="usages:unit,component" playwright tailwindcss="plugins:typography,forms" sveltekit-adapter="adapter:node" drizzle="database:postgresql+postgresql:postgres.js+docker:yes" mdsvex mcp="ide:claude-code+setup:local" experimental="versions:kit+features:async,remoteFunctions,explicitEnvironmentVariables,handleRenderingErrors,forkPreloads" --install bun langua
-```
+Self-hosted language practice for the families of Seilide: chat with an AI
+tutor, listening exercises, speaking with transcription, clips from
+JellyCartoon, corrections, translation, a study book and progress. Sign-in
+and AI go through Seilide (see [Accounts: Seilide](#accounts-seilide));
+speech-to-text runs locally. The plan and its status are in
+[PLANNING.md](PLANNING.md) (in Spanish).
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+```sh
+bun install
+cp .env.example .env        # then fill in the Seilide lines
+bun run db:start            # Postgres + local STT (docker compose)
+bun run db:migrate
+bun dev
+```
+
+Seilide only signs in to `https` callbacks that aren't localhost, so for a
+real sign-in run the app behind the dev tunnel (see below).
+
+## Checks and tests
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+bun run check      # svelte-check
+bun run lint       # prettier + eslint
+bun run test:unit  # vitest (also runs on pre-push)
+bun run test:e2e   # playwright
 ```
+
+- `src/lib/server/db/rls.spec.ts` checks Row-Level Security against a real
+  Postgres: it creates, migrates and drops a throwaway database next to the
+  dev one, as the app's restricted role. It skips itself when Postgres isn't
+  up.
+- The e2e suite builds the app and runs it against its own `langua_e2e`
+  database (created and dropped by `e2e/global-setup.ts` /
+  `global-teardown.ts`) with a signed-in member and a fake Seilide
+  (`e2e/fake-seilide.ts`), so nothing leaves the machine. Needs
+  `bun run db:start`.
 
 ## Building
 
-To create a production version of your app:
-
 ```sh
-npm run build
+bun run build
+bun run preview
 ```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
 
 ## Deployment (Dokploy)
 

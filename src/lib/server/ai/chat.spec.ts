@@ -6,6 +6,11 @@ const getAccessToken = vi.fn();
 vi.mock('$env/dynamic/private', () => ({
 	env: { SEILIDE_URL: 'https://seilide.test', OPENROUTER_MODEL: 'openai/gpt-4o-mini' }
 }));
+const insertedUsage = vi.fn();
+vi.mock('$lib/server/db/rls', () => ({
+	withUserRLS: (_userId: string, fn: (tx: unknown) => unknown) =>
+		fn({ insert: () => ({ values: insertedUsage }) })
+}));
 vi.mock('../auth', () => ({ auth: { api: { getAccessToken } } }));
 
 const { getChatModel } = await import('./chat');
@@ -32,7 +37,10 @@ describe('getChatModel', () => {
 		const fetchMock = vi.fn(async () => completion('Ciao!'));
 		vi.stubGlobal('fetch', fetchMock);
 
-		const { text } = await generateText({ model: await getChatModel('user-1'), prompt: 'Hi' });
+		const { text } = await generateText({
+			model: await getChatModel('user-1', 'chat'),
+			prompt: 'Hi'
+		});
 
 		expect(text).toBe('Ciao!');
 		expect(getAccessToken).toHaveBeenCalledWith({
@@ -49,6 +57,6 @@ describe('getChatModel', () => {
 	it('asks to sign in again when there is no usable Seilide token', async () => {
 		getAccessToken.mockRejectedValue(new Error('Failed to refresh the access token'));
 
-		await expect(getChatModel('user-1')).rejects.toMatchObject({ status: 401 });
+		await expect(getChatModel('user-1', 'chat')).rejects.toMatchObject({ status: 401 });
 	});
 });

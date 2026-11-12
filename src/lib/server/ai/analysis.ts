@@ -26,7 +26,7 @@ export async function analyzeUserMessage(
 	text: string,
 	targetLanguage: string
 ): Promise<MessageAnalysis> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'message_analysis');
 	const languageName = englishNameForLanguage(targetLanguage);
 
 	const { object } = await generateObject({

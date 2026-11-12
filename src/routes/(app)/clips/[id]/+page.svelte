@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { rovingFocus } from '$lib/rovingFocus';
+	import Button from '$lib/components/ui/Button.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -91,7 +93,9 @@
 	// Keeps the phrase being played in view as the audio advances.
 	function scrollIntoViewWhen(active: boolean) {
 		return (element: HTMLElement) => {
-			if (active) element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			if (!active) return;
+			const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			element.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
 		};
 	}
 
@@ -285,6 +289,8 @@
 	}
 </script>
 
+<svelte:head><title>{`${clipOrigin(data.clip)} · Clips · Langua`}</title></svelte:head>
+
 <div class="mx-auto flex w-full max-w-6xl gap-6 p-6">
 	<div class="flex min-w-0 flex-1 flex-col gap-6">
 		<header class="flex flex-col gap-1">
@@ -328,18 +334,12 @@
 					use:enhance
 					class="flex flex-wrap items-center gap-3 p-2"
 				>
-					<p class="text-sm text-red-600">
+					<p class="text-sm text-danger">
 						{data.clip.transcriptionStatus === 'failed'
 							? 'No se pudo transcribir este clip.'
 							: 'La transcripción se interrumpió.'}
 					</p>
-					<button
-						type="submit"
-						class="rounded-md border px-3 py-1.5 text-sm"
-						style:border-color="var(--color-border)"
-					>
-						Reintentar
-					</button>
+					<Button variant="secondary" type="submit">Reintentar</Button>
 				</form>
 			{:else if data.clip.cues.length === 0}
 				<p class="p-2 text-sm" style:color="var(--color-ink-muted)">
@@ -378,19 +378,19 @@
 
 		{#if data.clip.language && data.clip.cues.length > 0 && !transcribing && !canRetry}
 			<div class="flex flex-wrap items-center gap-2 text-sm">
-				<button
-					type="button"
+				<Button
+					variant="secondary"
 					onclick={extractVocabulary}
 					disabled={vocabExtraction === 'loading'}
-					class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
-					style:border-color="var(--color-border)"
 				>
 					Extraer vocabulario
-				</button>
+				</Button>
 				{#if vocabExtraction === 'loading'}
 					<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
 				{:else if vocabExtraction === 'error'}
-					<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
+					<span class="text-xs" style:color="var(--color-danger)"
+						>No se pudo extraer el vocabulario.</span
+					>
 				{:else if vocabExtraction !== 'idle'}
 					<span class="text-xs" style:color="var(--color-ink-muted)">
 						{vocabExtraction.added > 0
@@ -407,30 +407,12 @@
 		<form method="POST" action="?/delete" use:enhance class="flex items-center gap-3">
 			{#if confirmingDelete}
 				<span class="text-sm">¿Borrar este clip y su audio?</span>
-				<button
-					type="submit"
-					class="rounded-md px-3 py-1.5 text-sm font-medium text-white"
-					style:background-color="#dc2626"
-				>
-					Borrar
-				</button>
-				<button
-					type="button"
-					onclick={() => (confirmingDelete = false)}
-					class="rounded-md border px-3 py-1.5 text-sm"
-					style:border-color="var(--color-border)"
-				>
-					Cancelar
-				</button>
+				<Button variant="danger" type="submit">Borrar</Button>
+				<Button variant="secondary" onclick={() => (confirmingDelete = false)}>Cancelar</Button>
 			{:else}
-				<button
-					type="button"
-					onclick={() => (confirmingDelete = true)}
-					class="rounded-md border px-3 py-1.5 text-sm text-red-600"
-					style:border-color="var(--color-border)"
-				>
+				<Button variant="danger-outline" onclick={() => (confirmingDelete = true)}>
 					Borrar clip
-				</button>
+				</Button>
 			{/if}
 		</form>
 	</div>
@@ -461,12 +443,17 @@
 			{formatTimestamp(start)}
 		</button>
 		<span class="flex min-w-0 flex-col">
-			<span class="whitespace-pre-line">
+			<span
+				class="whitespace-pre-line"
+				lang={data.clip.language ?? undefined}
+				{@attach rovingFocus}
+			>
 				{#if data.clip.language}
 					{#each splitIntoWords(text) as token, t (t)}
 						{#if token.clickable}
 							<button
 								type="button"
+								data-word
 								onclick={() => lookupWord(cueIndex, token.text)}
 								class="hover:underline"
 								style:font="inherit"
@@ -500,7 +487,7 @@
 					Traducir
 				</button>
 				{#if translation === 'error'}
-					<p class="text-xs" style:color="#f87171">No se pudo traducir la frase.</p>
+					<p class="text-xs" style:color="var(--color-danger)">No se pudo traducir la frase.</p>
 				{/if}
 			{:else if translation === 'loading'}
 				<p class="text-xs italic" style:color="var(--color-ink-muted)">Traduciendo...</p>
@@ -526,41 +513,30 @@
 	>
 		<div class="flex items-center gap-1" role="group" aria-label="Velocidad">
 			{#each PLAYBACK_RATES as rate (rate)}
-				<button
-					type="button"
+				<Button
+					variant="secondary"
+					size="sm"
 					onclick={() => (playbackRate = rate)}
-					aria-pressed={playbackRate === rate}
-					class="rounded-md border px-2 py-1"
-					style:border-color={playbackRate === rate ? 'var(--color-accent)' : 'var(--color-border)'}
-					style:color={playbackRate === rate ? 'var(--color-accent)' : undefined}
+					pressed={playbackRate === rate}
 				>
 					{rate.toLocaleString('es')}×
-				</button>
+				</Button>
 			{/each}
 		</div>
-		<button
-			type="button"
+		<Button
+			variant="secondary"
+			size="sm"
 			onclick={toggleLoop}
-			aria-pressed={loopIndex !== null}
+			pressed={loopIndex !== null}
 			disabled={loopIndex === null && selectedIndex === null && activeIndex < 0}
-			class="flex items-center gap-1.5 rounded-md border px-2 py-1 disabled:opacity-50"
-			style:border-color={loopIndex !== null ? 'var(--color-accent)' : 'var(--color-border)'}
-			style:color={loopIndex !== null ? 'var(--color-accent)' : undefined}
 		>
 			<Repeat class="h-3.5 w-3.5" />
 			Repetir frase
-		</button>
-		<button
-			type="button"
-			onclick={toggleListenFirst}
-			aria-pressed={listenFirst}
-			class="flex items-center gap-1.5 rounded-md border px-2 py-1"
-			style:border-color={listenFirst ? 'var(--color-accent)' : 'var(--color-border)'}
-			style:color={listenFirst ? 'var(--color-accent)' : undefined}
-		>
+		</Button>
+		<Button variant="secondary" size="sm" onclick={toggleListenFirst} pressed={listenFirst}>
 			<EyeOff class="h-3.5 w-3.5" />
 			Escuchar primero
-		</button>
+		</Button>
 	</div>
 {/snippet}
 
@@ -608,7 +584,7 @@
 			type="button"
 			onclick={togglePlay}
 			aria-label={paused ? 'Reproducir' : 'Pausar'}
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-on-accent"
 			style:background-color="var(--color-accent)"
 		>
 			{#if paused}

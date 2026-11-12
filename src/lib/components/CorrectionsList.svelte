@@ -3,8 +3,14 @@
 
 	let {
 		corrections,
-		overallFeedback
-	}: { corrections: Correction[]; overallFeedback: string | null } = $props();
+		overallFeedback,
+		language
+	}: {
+		corrections: Correction[];
+		overallFeedback: string | null;
+		/** Language of the corrected text, so screen readers pronounce it right. */
+		language?: string | null;
+	} = $props();
 </script>
 
 {#if corrections.length === 0}
@@ -18,10 +24,12 @@
 				class="flex flex-col gap-1 rounded-md border px-3 py-2 text-sm"
 				style:border-color="var(--color-border)"
 			>
-				<p>
-					<span style:color="#f87171" style:text-decoration="line-through">{item.original}</span>
+				<p lang={language ?? undefined}>
+					<span style:color="var(--color-danger)" style:text-decoration="line-through"
+						>{item.original}</span
+					>
 				</p>
-				<p style:color="var(--color-accent)">{item.correction}</p>
+				<p lang={language ?? undefined} style:color="var(--color-accent)">{item.correction}</p>
 				<p class="text-xs italic" style:color="var(--color-ink-muted)">{item.explanation}</p>
 			</li>
 		{/each}

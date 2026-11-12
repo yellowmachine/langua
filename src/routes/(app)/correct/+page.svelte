@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import { announcer } from '$lib/announcer.svelte';
 	import { LANGUAGES } from '$lib/languages';
 	import CorrectionsList from '$lib/components/CorrectionsList.svelte';
 	import SentenceAnalysis from '$lib/components/SentenceAnalysis.svelte';
@@ -6,7 +9,8 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let targetLanguage = $state(data.user.targetLanguage ?? LANGUAGES[0].code);
+	// The account's languages are only the starting choice: the selects own it.
+	let targetLanguage = $state(untrack(() => data.user.targetLanguage ?? LANGUAGES[0].code));
 	let text = $state('');
 
 	type Correction = { original: string; correction: string; explanation: string };
@@ -43,14 +47,24 @@
 			});
 			if (!response.ok) {
 				result = 'error';
+				announcer.alert('No se pudo revisar el texto.');
 				return;
 			}
-			result = await response.json();
+			const checked: Exclude<Result, 'idle' | 'loading' | 'error'> = await response.json();
+			result = checked;
+			announcer.say(
+				checked.corrections.length === 0
+					? 'Revisión lista: no hay errores.'
+					: `Revisión lista: ${checked.corrections.length} correcciones.`
+			);
 		} catch {
 			result = 'error';
+			announcer.alert('No se pudo revisar el texto.');
 		}
 	}
 </script>
+
+<svelte:head><title>Corregir · Langua</title></svelte:head>
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
 	<h1 class="text-lg font-semibold">Corregir</h1>
@@ -59,7 +73,7 @@
 		Idioma
 		<select
 			bind:value={targetLanguage}
-			class="rounded-md border px-3 py-2"
+			class="rounded-md border py-2 pr-9 pl-3"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-surface)"
 		>
@@ -71,26 +85,26 @@
 
 	<textarea
 		bind:value={text}
+		lang={targetLanguage}
+		aria-label="Texto que quieres corregir"
 		rows="8"
 		placeholder="Escribe aquí tu texto para que lo revise..."
 		class="rounded-md border px-3 py-2 text-sm"
 		style:border-color="var(--color-border)"
 		style:background-color="var(--color-background)"></textarea>
 
-	<button
-		type="button"
-		onclick={check}
-		disabled={result === 'loading' || !text.trim()}
-		class="w-fit rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-		style:background-color="var(--color-accent)"
-	>
+	<Button class="w-fit" onclick={check} disabled={result === 'loading' || !text.trim()}>
 		{result === 'loading' ? 'Revisando...' : 'Corregir'}
-	</button>
+	</Button>
 
 	{#if result === 'error'}
-		<p class="text-sm" style:color="#f87171">No se pudo revisar el texto.</p>
+		<p class="text-sm" style:color="var(--color-danger)">No se pudo revisar el texto.</p>
 	{:else if result !== 'idle' && result !== 'loading'}
 		<SentenceAnalysis analysis={result.styleAnalysis} />
-		<CorrectionsList corrections={result.corrections} overallFeedback={result.overallFeedback} />
+		<CorrectionsList
+			corrections={result.corrections}
+			overallFeedback={result.overallFeedback}
+			language={targetLanguage}
+		/>
 	{/if}
 </div>

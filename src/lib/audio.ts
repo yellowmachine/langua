@@ -8,8 +8,20 @@ export interface SpeechRequest {
 }
 
 // Blob URLs for already-fetched phrases, keyed by their /tts URL, so replaying
-// or auto-playing the same phrase in a session doesn't hit /tts again.
+// or auto-playing the same phrase in a session doesn't hit /tts again. Kept
+// to the most recent ones (a Map iterates in insertion order), releasing the
+// audio of the rest.
 const audioUrlCache = new Map<string, Promise<string | null>>();
+const AUDIO_CACHE_SIZE = 50;
+
+function remember(key: string, pending: Promise<string | null>) {
+	audioUrlCache.set(key, pending);
+	while (audioUrlCache.size > AUDIO_CACHE_SIZE) {
+		const [oldestKey, oldest] = audioUrlCache.entries().next().value!;
+		audioUrlCache.delete(oldestKey);
+		oldest.then((url) => url && URL.revokeObjectURL(url));
+	}
+}
 
 /**
  * The /tts URL for `text`, with the signed-in user's voice and accent (Mi
@@ -27,12 +39,15 @@ function speechUrl(text: string, language: string | null | undefined, request: S
 	return `/tts?${params}`;
 }
 
+/** null when it couldn't be had (offline, /tts failed): never a rejection. */
 async function fetchAudioBlobUrl(url: string): Promise<string | null> {
-	const response = await fetch(url);
-	if (!response.ok) return null;
-
-	const blob = await response.blob();
-	return URL.createObjectURL(blob);
+	try {
+		const response = await fetch(url);
+		if (!response.ok) return null;
+		return URL.createObjectURL(await response.blob());
+	} catch {
+		return null;
+	}
 }
 
 /** Fetches synthesized speech from /tts as a ready-to-play Audio element. */
@@ -45,7 +60,7 @@ export async function fetchSpeechAudio(
 	let pending = audioUrlCache.get(key);
 	if (!pending) {
 		pending = fetchAudioBlobUrl(key);
-		audioUrlCache.set(key, pending);
+		remember(key, pending);
 	}
 
 	const url = await pending;

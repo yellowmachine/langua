@@ -14,7 +14,10 @@
 </script>
 
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import SpeakButton from './SpeakButton.svelte';
+	import { announcer } from '$lib/announcer.svelte';
+	import { drawer } from '$lib/drawer';
 
 	// Side panel with the word the learner clicked (chat messages, clip
 	// transcripts): beside the content on wide screens, a drawer on phones.
@@ -35,6 +38,16 @@
 		onsave: () => void;
 	} = $props();
 
+	// The panel may be off to the side (or closed on phones): say the result.
+	$effect(() => {
+		if (lookup === 'error') announcer.alert('No se pudo analizar la palabra.');
+		else if (lookup !== 'idle' && lookup !== 'loading') {
+			announcer.say(
+				lookup.saved ? 'Añadida al libro de estudio' : `${lookup.word}: ${lookup.translation}`
+			);
+		}
+	});
+
 	const WORD_POS_LABELS: Record<string, string> = {
 		noun: 'Sustantivo',
 		verb: 'Verbo',
@@ -47,13 +60,15 @@
 {#if open}
 	<button
 		type="button"
-		aria-label="Cerrar"
+		tabindex="-1"
+		aria-hidden="true"
 		onclick={onclose}
 		class="fixed inset-0 z-30 bg-black/40 sm:hidden"
 	></button>
 {/if}
 
 <aside
+	{@attach drawer(open, onclose, 'Palabra')}
 	class="fixed inset-y-0 right-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-3 overflow-y-auto border-l p-4 shadow-xl sm:static sm:z-auto sm:flex sm:max-w-none sm:border-t-0 sm:p-0 sm:pl-4 sm:shadow-none"
 	style:border-color="var(--color-border)"
 	style:background-color="var(--color-background)"
@@ -78,11 +93,11 @@
 	{:else if lookup === 'loading'}
 		<p class="text-xs italic" style:color="var(--color-ink-muted)">Analizando...</p>
 	{:else if lookup === 'error'}
-		<p class="text-xs" style:color="#f87171">No se pudo analizar la palabra.</p>
+		<p class="text-xs" style:color="var(--color-danger)">No se pudo analizar la palabra.</p>
 	{:else}
 		<div class="flex flex-col gap-2 text-sm">
 			<div class="flex items-center gap-2">
-				<span class="font-medium">{lookup.word}</span>
+				<span class="font-medium" lang={language ?? undefined}>{lookup.word}</span>
 				<SpeakButton text={lookup.word} {language} style="word" />
 			</div>
 			<span class="text-xs" style:color="var(--color-ink-muted)">
@@ -91,17 +106,13 @@
 			<p>{lookup.translation}</p>
 			<p class="text-xs" style:color="var(--color-ink-muted)">{lookup.explanation}</p>
 			{#if lookup.sentence}
-				<p class="text-xs italic" style:color="var(--color-ink-muted)">{lookup.sentence}</p>
+				<p class="text-xs italic" lang={language ?? undefined} style:color="var(--color-ink-muted)">
+					{lookup.sentence}
+				</p>
 			{/if}
-			<button
-				type="button"
-				onclick={onsave}
-				disabled={lookup.saved}
-				class="w-fit rounded-md px-2.5 py-1 text-xs font-medium text-white disabled:opacity-60"
-				style:background-color="var(--color-accent)"
-			>
+			<Button size="sm" class="w-fit" onclick={onsave} disabled={lookup.saved}>
 				{lookup.saved ? 'Añadida al libro de estudio' : 'Añadir al libro de estudio'}
-			</button>
+			</Button>
 		</div>
 	{/if}
 </aside>

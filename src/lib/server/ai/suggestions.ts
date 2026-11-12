@@ -16,7 +16,7 @@ export async function generateQuickReplies(
 	targetLanguage: string,
 	focus?: string | null
 ): Promise<QuickReplies> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'suggestions');
 	const languageName = englishNameForLanguage(targetLanguage);
 
 	const { object } = await generateObject({

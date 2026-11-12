@@ -1,10 +1,25 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
+	import Chip from '$lib/components/ui/Chip.svelte';
+	import { announcer } from '$lib/announcer.svelte';
 	import { resolve } from '$app/paths';
+	import { enhance } from '$app/forms';
+	import Pencil from '@lucide/svelte/icons/pencil';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import { LANGUAGES } from '$lib/languages';
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	// The word being edited in place, if any.
+	let editingId: string | null = $state(null);
+
+	function confirmDelete(event: MouseEvent, word: string) {
+		if (!confirm(`¿Borrar «${word}» del libro de estudio? También se pierde su repaso.`)) {
+			event.preventDefault();
+		}
+	}
 
 	const posLabels: Record<string, string> = {
 		noun: 'Sustantivos',
@@ -52,12 +67,15 @@
 			const response = await fetch(`/study/${itemId}/sentence`, { method: 'POST' });
 			if (!response.ok) {
 				generation[itemId] = 'error';
+				announcer.alert('No se pudo generar la frase.');
 				return;
 			}
 			const result: { sentence: string; translation: string } = await response.json();
 			generation[itemId] = { sentence: result.sentence, translation: result.translation };
+			announcer.say(`Frase nueva: ${result.sentence} — ${result.translation}`);
 		} catch {
 			generation[itemId] = 'error';
+			announcer.alert('No se pudo generar la frase.');
 		}
 	}
 
@@ -114,8 +132,20 @@
 	});
 </script>
 
+<svelte:head><title>Libro de estudio · Langua</title></svelte:head>
+
 <div class="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
-	<h1 class="text-lg font-semibold">Libro de estudio</h1>
+	<div class="flex flex-wrap items-center justify-between gap-2">
+		<h1 class="text-lg font-semibold">Libro de estudio</h1>
+		{#if data.items.length > 0}
+			<a
+				href={resolve('/study/review')}
+				class="inline-flex min-h-10 items-center rounded-md bg-accent px-3 py-2 text-sm font-medium text-on-accent"
+			>
+				{data.due > 0 ? `Repasar (${data.due} pendientes)` : 'Repasar'}
+			</a>
+		{/if}
+	</div>
 
 	{#if data.items.length === 0}
 		<p style:color="var(--color-ink-muted)">
@@ -126,7 +156,8 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<input
 				bind:value={searchQuery}
-				type="text"
+				aria-label="Buscar en el libro de estudio"
+				type="search"
 				placeholder="Buscar palabra o traducción..."
 				class="flex-1 rounded-md border px-3 py-2 text-sm"
 				style:border-color="var(--color-border)"
@@ -164,34 +195,107 @@
 									class="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm"
 									style:border-color="var(--color-border)"
 								>
-									<div class="flex flex-wrap items-center gap-2">
-										<span class="font-medium">{item.word}</span>
-										<SpeakButton text={item.word} language={item.targetLanguage} style="word" />
-										<span style:color="var(--color-ink-muted)">— {item.translation}</span>
-									</div>
+									{#if editingId === item.id}
+										<form
+											method="POST"
+											action="?/edit"
+											use:enhance={() =>
+												async ({ result, update }) => {
+													await update({ reset: false });
+													if (result.type === 'success') {
+														editingId = null;
+														announcer.say('Palabra guardada');
+													}
+												}}
+											class="flex flex-col gap-2"
+										>
+											<input type="hidden" name="id" value={item.id} />
+											<label class="flex flex-col gap-1 text-xs text-ink-muted">
+												Palabra
+												<input
+													name="word"
+													value={item.word}
+													required
+													maxlength={300}
+													lang={item.targetLanguage}
+													class="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-ink"
+												/>
+											</label>
+											<label class="flex flex-col gap-1 text-xs text-ink-muted">
+												Traducción
+												<input
+													name="translation"
+													value={item.translation}
+													required
+													maxlength={300}
+													class="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-ink"
+												/>
+											</label>
+											<label class="flex flex-col gap-1 text-xs text-ink-muted">
+												Frase de ejemplo
+												<input
+													name="exampleSentence"
+													value={item.exampleSentence}
+													maxlength={300}
+													lang={item.targetLanguage}
+													class="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-ink"
+												/>
+											</label>
+											{#if form?.id === item.id && form?.message}
+												<p class="text-xs text-danger" role="alert">{form.message}</p>
+											{/if}
+											<div class="flex gap-2">
+												<Button type="submit" size="sm">Guardar</Button>
+												<Button variant="secondary" size="sm" onclick={() => (editingId = null)}>
+													Cancelar
+												</Button>
+											</div>
+										</form>
+									{:else}
+										<div class="flex flex-wrap items-center gap-2">
+											<span class="font-medium" lang={item.targetLanguage}>{item.word}</span>
+											<SpeakButton text={item.word} language={item.targetLanguage} style="word" />
+											<span style:color="var(--color-ink-muted)">— {item.translation}</span>
+											<span class="ml-auto flex items-center gap-1">
+												<button
+													type="button"
+													onclick={() => (editingId = item.id)}
+													aria-label="Editar «{item.word}»"
+													class="inline-flex min-h-8 min-w-8 items-center justify-center rounded-md text-ink-muted hover:text-ink"
+												>
+													<Pencil class="h-4 w-4" aria-hidden="true" />
+												</button>
+												<form method="POST" action="?/delete" use:enhance>
+													<input type="hidden" name="id" value={item.id} />
+													<button
+														type="submit"
+														onclick={(event) => confirmDelete(event, item.word)}
+														aria-label="Borrar «{item.word}»"
+														class="inline-flex min-h-8 min-w-8 items-center justify-center rounded-md text-ink-muted hover:text-danger"
+													>
+														<Trash2 class="h-4 w-4" aria-hidden="true" />
+													</button>
+												</form>
+											</span>
+										</div>
+									{/if}
 
 									{#if item.tags.length > 0}
 										<div class="flex flex-wrap gap-1.5">
 											{#each item.tags as tag (tag)}
-												<button
-													type="button"
-													onclick={() => toggleTag(tag)}
-													class="rounded-full border border-dashed px-2 py-0.5 text-xs"
-													style:border-color={activeTag === tag
-														? 'var(--color-accent)'
-														: 'var(--color-border)'}
-													style:color={activeTag === tag
-														? 'var(--color-accent)'
-														: 'var(--color-ink-muted)'}
-												>
+												<Chip onclick={() => toggleTag(tag)} pressed={activeTag === tag}>
 													{tag}
-												</button>
+												</Chip>
 											{/each}
 										</div>
 									{/if}
 
 									<div class="flex items-center gap-2">
-										<p class="text-xs italic" style:color="var(--color-ink-muted)">
+										<p
+											class="text-xs italic"
+											lang={item.targetLanguage}
+											style:color="var(--color-ink-muted)"
+										>
 											{item.exampleSentence}
 										</p>
 										<SpeakButton text={item.exampleSentence} language={item.targetLanguage} />
@@ -200,7 +304,7 @@
 									{#each extraByItemId[item.id] ?? [] as example, i (i)}
 										<div class="flex items-center gap-2">
 											<p class="text-xs italic" style:color="var(--color-ink-muted)">
-												{example.sentence}
+												<span lang={item.targetLanguage}>{example.sentence}</span>
 												<span style:color="var(--color-ink-muted)">— {example.translation}</span>
 											</p>
 											<SpeakButton text={example.sentence} language={item.targetLanguage} />
@@ -208,7 +312,7 @@
 												type="button"
 												onclick={() => deleteExample(item.id, i)}
 												aria-label="Borrar frase"
-												class="shrink-0 rounded-md p-1 opacity-60 hover:opacity-100"
+												class="inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-md opacity-60 hover:opacity-100"
 											>
 												<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
 													<path
@@ -224,21 +328,22 @@
 									{/each}
 
 									{#if state === 'idle'}
-										<button
-											type="button"
+										<Button
+											variant="secondary"
+											size="sm"
+											class="w-fit"
 											onclick={() => generateSentence(item.id)}
-											class="w-fit rounded-md border px-2.5 py-1 text-xs"
-											style:border-color="var(--color-border)"
 										>
 											Generar frase
-										</button>
+										</Button>
 									{:else if state === 'loading'}
 										<span class="text-xs italic" style:color="var(--color-ink-muted)"
 											>Generando...</span
 										>
 									{:else if state === 'error'}
 										<div class="flex items-center gap-2">
-											<span class="text-xs" style:color="#f87171">No se pudo generar la frase.</span
+											<span class="text-xs" style:color="var(--color-danger)"
+												>No se pudo generar la frase.</span
 											>
 											<button
 												type="button"
@@ -252,26 +357,18 @@
 									{:else}
 										<div class="flex flex-wrap items-center gap-2">
 											<p class="text-xs italic">
-												{state.sentence}
+												<span lang={item.targetLanguage}>{state.sentence}</span>
 												<span style:color="var(--color-ink-muted)">— {state.translation}</span>
 											</p>
 											<SpeakButton text={state.sentence} language={item.targetLanguage} />
-											<button
-												type="button"
-												onclick={() => saveSentence(item.id)}
-												class="rounded-md px-2.5 py-1 text-xs font-medium text-white"
-												style:background-color="var(--color-accent)"
-											>
-												Guardar
-											</button>
-											<button
-												type="button"
+											<Button size="sm" onclick={() => saveSentence(item.id)}>Guardar</Button>
+											<Button
+												variant="secondary"
+												size="sm"
 												onclick={() => discardSentence(item.id)}
-												class="rounded-md border px-2.5 py-1 text-xs"
-												style:border-color="var(--color-border)"
 											>
 												Descartar
-											</button>
+											</Button>
 										</div>
 									{/if}
 								</li>

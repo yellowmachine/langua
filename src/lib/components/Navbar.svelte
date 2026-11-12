@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import type { Component } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -12,6 +13,7 @@
 	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import Mic from '@lucide/svelte/icons/mic';
 	import SpellCheck from '@lucide/svelte/icons/spell-check';
+	import Wallet from '@lucide/svelte/icons/wallet';
 
 	let { user }: { user: { name: string } } = $props();
 
@@ -29,6 +31,7 @@
 		{ href: resolve('/translate'), label: 'Traducir', icon: Languages },
 		{ href: resolve('/correct'), label: 'Corregir', icon: SpellCheck },
 		{ href: resolve('/speak'), label: 'Hablar', icon: Mic },
+		{ href: resolve('/costs'), label: 'Gasto en IA', icon: Wallet },
 		{ href: resolve('/progress'), label: 'Progreso', icon: ChartLine },
 		{ href: resolve('/account'), label: 'Mi cuenta', icon: CircleUser }
 	];
@@ -56,7 +59,7 @@
 			Langua
 		</a>
 
-		<nav class="hidden flex-1 items-center gap-1 sm:flex">
+		<nav aria-label="Secciones" class="hidden flex-1 items-center gap-1 sm:flex">
 			{#each links as link (link.href)}
 				<a
 					href={link.href}
@@ -115,6 +118,7 @@
 
 	{#if menuOpen}
 		<nav
+			aria-label="Secciones"
 			id="mobile-menu"
 			class="flex flex-col gap-1 border-t px-6 py-3 text-sm sm:hidden"
 			style:border-color="var(--color-border)"
@@ -140,14 +144,10 @@
 				<span class="text-sm" style:color="var(--color-ink-muted)">{user.name}</span>
 
 				<form method="POST" action="/logout">
-					<button
-						type="submit"
-						class="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
-						style:border-color="var(--color-border)"
-					>
+					<Button variant="secondary" class="flex items-center gap-2" type="submit">
 						<LogOut class="h-4 w-4" />
 						Cerrar sesión
-					</button>
+					</Button>
 				</form>
 			</div>
 		</nav>

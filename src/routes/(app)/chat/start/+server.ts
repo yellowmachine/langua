@@ -26,39 +26,43 @@ export const POST: RequestHandler = async (event) => {
 	});
 	if (!conversation) error(404, 'Conversation not found');
 
-	const [{ count }] = await event.locals.withRLS((tx) =>
-		tx
+	// One transaction, locked on the conversation: a second call (another
+	// tab, a double effect run) waits here, then sees the greeting already
+	// there instead of asking the model, and paying, for a second one.
+	const started = await event.locals.withRLS(async (tx) => {
+		await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${conversationId}))`);
+
+		const [{ count }] = await tx
 			.select({ count: sql<number>`count(*)::int` })
 			.from(chatMessage)
-			.where(eq(chatMessage.conversationId, conversationId))
-	);
-	// Already has messages (a real reply, or another call already opened it) — no-op.
-	if (count > 0) return json({ started: false });
+			.where(eq(chatMessage.conversationId, conversationId));
+		// Already has messages (a real reply, or another call already opened it).
+		if (count > 0) return false;
 
-	const model = await getChatModel(event.locals.user.id);
-	const system = buildChatSystemPrompt(
-		conversation.targetLanguage,
-		conversation.title,
-		conversation.level
-	);
-	const languageName = englishNameForLanguage(conversation.targetLanguage);
+		const model = await getChatModel(event.locals.user!.id, 'chat_opening');
+		const system = buildChatSystemPrompt(
+			conversation.targetLanguage,
+			conversation.title,
+			conversation.level
+		);
+		const languageName = englishNameForLanguage(conversation.targetLanguage);
 
-	const { text } = await generateText({
-		model,
-		system,
-		prompt: `Write a short, friendly opening message in ${languageName} to start this conversation with the learner${
-			conversation.title ? ` about: "${conversation.title}"` : ''
-		}. Greet them and ask an inviting question to get them talking. Keep it short (1-3 sentences).`
-	});
+		const { text } = await generateText({
+			model,
+			system,
+			prompt: `Write a short, friendly opening message in ${languageName} to start this conversation with the learner${
+				conversation.title ? ` about: "${conversation.title}"` : ''
+			}. Greet them and ask an inviting question to get them talking. Keep it short (1-3 sentences).`
+		});
 
-	await event.locals.withRLS((tx) =>
-		tx.insert(chatMessage).values({
+		await tx.insert(chatMessage).values({
 			id: crypto.randomUUID(),
 			conversationId,
 			role: 'assistant',
 			content: text
-		})
-	);
+		});
+		return true;
+	});
 
-	return json({ started: true });
+	return json({ started });
 };

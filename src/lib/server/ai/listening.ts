@@ -25,7 +25,7 @@ export async function generateListeningExercise(
 	exerciseType?: string | null
 ): Promise<ListeningExercise> {
 	const languageName = englishNameForLanguage(targetLanguage);
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'listening');
 
 	const typeInstruction = exerciseType
 		? ` The learner asked for this kind of passage (their own words, possibly in their native language): "${exerciseType}".`

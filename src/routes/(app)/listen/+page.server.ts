@@ -1,7 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { desc } from 'drizzle-orm';
+import { and, desc, eq, lt } from 'drizzle-orm';
+import { z } from 'zod';
 import { generateListeningExercise } from '$lib/server/ai/listening';
-import { listeningAttempt, type ListeningQuestionResult } from '$lib/server/db/schema';
+import {
+	listeningAttempt,
+	listeningExercise,
+	type ListeningQuestionResult
+} from '$lib/server/db/schema';
 import { LANGUAGES } from '$lib/languages';
 import { LEVELS } from '$lib/levels';
 import type { Actions, PageServerLoad } from './$types';
@@ -38,53 +43,98 @@ export const actions: Actions = {
 			return fail(400, { message: 'Nivel inválido.' });
 		}
 
-		return await generateListeningExercise(
+		const exercise = await generateListeningExercise(
 			locals.user.id,
 			targetLanguage,
 			level,
 			exerciseType || undefined
 		);
+
+		// The answers stay on the server until the learner has answered.
+		// Exercises left unanswered for a day are dropped on the way.
+		const id = crypto.randomUUID();
+		const yesterday = new Date(Date.now() - 24 * 3600_000);
+		await locals.withRLS(async (tx) => {
+			await tx
+				.delete(listeningExercise)
+				.where(
+					and(
+						eq(listeningExercise.userId, locals.user!.id),
+						lt(listeningExercise.createdAt, yesterday)
+					)
+				);
+			await tx.insert(listeningExercise).values({
+				id,
+				userId: locals.user!.id,
+				targetLanguage,
+				passage: exercise.passage,
+				questions: exercise.questions
+			});
+		});
+
+		return {
+			exerciseId: id,
+			passage: exercise.passage,
+			questions: exercise.questions.map(({ question, options }) => ({ question, options }))
+		};
 	},
 
 	submit: async (event) => {
 		if (!event.locals.user) redirect(303, '/login');
 
 		const data = await event.request.formData();
-		const passage = String(data.get('passage') ?? '');
-		const targetLanguage =
-			String(data.get('targetLanguage') ?? '') || event.locals.user.targetLanguage;
+		const parsed = submitSchema.safeParse({
+			exerciseId: data.get('exerciseId'),
+			answers: parseJson(data.get('answers'))
+		});
+		if (!parsed.success) return fail(400, { message: 'Datos inválidos.' });
+		const { exerciseId, answers } = parsed.data;
 
-		let questions: Array<{ question: string; options: string[]; correctIndex: number }>;
-		let answers: number[];
-		try {
-			questions = JSON.parse(String(data.get('questions') ?? '[]'));
-			answers = JSON.parse(String(data.get('answers') ?? '[]'));
-		} catch {
-			return fail(400, { message: 'Datos inválidos.' });
-		}
+		const outcome = await event.locals.withRLS(async (tx) => {
+			const [exercise] = await tx
+				.select()
+				.from(listeningExercise)
+				.where(eq(listeningExercise.id, exerciseId));
+			if (!exercise) return null;
+			if (answers.length !== exercise.questions.length) return 'mismatch' as const;
 
-		if (!passage || questions.length === 0 || answers.length !== questions.length) {
-			return fail(400, { message: 'Datos inválidos.' });
-		}
+			const graded: ListeningQuestionResult[] = exercise.questions.map((q, i) => ({
+				...q,
+				selectedIndex: answers[i]
+			}));
+			const correctCount = graded.filter((q) => q.selectedIndex === q.correctIndex).length;
+			const score = Math.round((correctCount / graded.length) * 100);
 
-		const graded: ListeningQuestionResult[] = questions.map((q, i) => ({
-			...q,
-			selectedIndex: answers[i]
-		}));
-		const correctCount = graded.filter((q) => q.selectedIndex === q.correctIndex).length;
-		const score = Math.round((correctCount / questions.length) * 100);
-
-		await event.locals.withRLS((tx) =>
-			tx.insert(listeningAttempt).values({
+			await tx.insert(listeningAttempt).values({
 				id: crypto.randomUUID(),
 				userId: event.locals.user!.id,
-				targetLanguage: targetLanguage ?? 'en',
-				passage,
+				targetLanguage: exercise.targetLanguage,
+				passage: exercise.passage,
 				questions: graded,
 				score
-			})
-		);
+			});
+			await tx.delete(listeningExercise).where(eq(listeningExercise.id, exerciseId));
 
-		return { graded, score };
+			return { graded, score };
+		});
+
+		if (outcome === null) {
+			return fail(404, { message: 'Este ejercicio ya está corregido o no existe.' });
+		}
+		if (outcome === 'mismatch') return fail(400, { message: 'Datos inválidos.' });
+		return outcome;
 	}
 };
+
+const submitSchema = z.object({
+	exerciseId: z.string().min(1),
+	answers: z.array(z.number().int().min(0).max(2)).max(10)
+});
+
+function parseJson(value: FormDataEntryValue | null): unknown {
+	try {
+		return JSON.parse(String(value ?? ''));
+	} catch {
+		return null;
+	}
+}

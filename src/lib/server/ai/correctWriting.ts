@@ -30,7 +30,7 @@ export async function correctWriting(
 	targetLanguage: string,
 	nativeLanguage: string
 ): Promise<WritingCorrection> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'correction');
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

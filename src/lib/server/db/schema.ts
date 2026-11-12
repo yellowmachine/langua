@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+	numeric,
 	pgTable,
 	text,
 	timestamp,
@@ -12,6 +13,19 @@ import {
 	pgPolicy
 } from 'drizzle-orm/pg-core';
 import type { HighlightError } from '$lib/textHighlight';
+
+/** ts-fsrs card, with its dates as ISO strings (it's stored as JSON). */
+export type SrsCard = {
+	due: string;
+	stability: number;
+	difficulty: number;
+	scheduled_days: number;
+	learning_steps: number;
+	reps: number;
+	lapses: number;
+	state: number;
+	last_review?: string;
+};
 
 export type ListeningQuestionResult = {
 	question: string;
@@ -232,6 +246,33 @@ export const listeningAttemptRelations = relations(listeningAttempt, ({ one }) =
 	})
 }));
 
+// An Escuchar exercise handed out but not answered yet. The answers stay
+// here, on the server: the browser only gets the passage and the options,
+// and sends back the exerciseId with its choices to be graded (the row is
+// then replaced by a listening_attempt).
+export const listeningExercise = pgTable(
+	'listening_exercise',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		targetLanguage: text('target_language').notNull(),
+		passage: text('passage').notNull(),
+		questions: jsonb('questions')
+			.$type<{ question: string; options: string[]; correctIndex: number }[]>()
+			.notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('listening_exercise_user_idx').on(t.userId),
+		pgPolicy('listening_exercise_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
 // Per-user API tokens for other apps (e.g. JellyCartoon) to push content
 // in. Only the SHA-256 of the token is stored. Two policies: the usual
 // per-user one, for managing them from /account, and a lookup-by-hash one
@@ -346,10 +387,15 @@ export const vocabItem = pgTable(
 			onDelete: 'set null'
 		}),
 		sourceClipId: text('source_clip_id').references(() => clip.id, { onDelete: 'set null' }),
+		// Spaced repetition (ts-fsrs, src/lib/server/srs.ts): when it's next
+		// due, and the scheduler's card state (null until its first review).
+		dueAt: timestamp('due_at').defaultNow().notNull(),
+		srs: jsonb('srs').$type<SrsCard>(),
 		createdAt: timestamp('created_at').defaultNow().notNull()
 	},
 	(t) => [
 		index('vocab_item_user_idx').on(t.userId),
+		index('vocab_item_user_due_idx').on(t.userId, t.dueAt),
 		uniqueIndex('vocab_item_user_lang_lemma_idx').on(t.userId, t.targetLanguage, t.lemma),
 		pgPolicy('vocab_item_access', {
 			for: 'all',
@@ -372,3 +418,84 @@ export const vocabItemRelations = relations(vocabItem, ({ one }) => ({
 		references: [clip.id]
 	})
 }));
+
+// One row per flashcard answer: what Progreso counts as review activity
+// (and what an FSRS optimizer would learn from later).
+export const vocabReview = pgTable(
+	'vocab_review',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		vocabItemId: text('vocab_item_id')
+			.notNull()
+			.references(() => vocabItem.id, { onDelete: 'cascade' }),
+		/** ts-fsrs Rating: 1 again, 2 hard, 3 good, 4 easy. */
+		rating: integer('rating').notNull(),
+		reviewedAt: timestamp('reviewed_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('vocab_review_user_idx').on(t.userId, t.reviewedAt),
+		pgPolicy('vocab_review_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+// A sentence said aloud in Hablar, compared word by word with what the
+// speech-to-text heard.
+export const speakingAttempt = pgTable(
+	'speaking_attempt',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		targetLanguage: text('target_language').notNull(),
+		targetText: text('target_text').notNull(),
+		transcript: text('transcript').notNull(),
+		score: integer('score').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('speaking_attempt_user_idx').on(t.userId, t.createdAt),
+		pgPolicy('speaking_attempt_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+// One row per AI call made on a member's behalf (paid by their family through
+// Seilide): what for, with which model, its tokens and what OpenRouter charged.
+export const aiUsage = pgTable(
+	'ai_usage',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		/** An AiTask (src/lib/aiTasks.ts). */
+		task: text('task').notNull(),
+		model: text('model').notNull(),
+		inputTokens: integer('input_tokens').default(0).notNull(),
+		outputTokens: integer('output_tokens').default(0).notNull(),
+		/** Characters read aloud, for speech (which is billed by audio, not tokens). */
+		characters: integer('characters'),
+		// USD. What OpenRouter charged (usage.cost, passed on by Seilide), or
+		// tokens × list price when the answer came without it (cost_is_estimate).
+		// Null when unknown: speech comes back without a cost.
+		costUsd: numeric('cost_usd', { precision: 12, scale: 8 }),
+		costIsEstimate: boolean('cost_is_estimate').default(false).notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('ai_usage_user_idx').on(t.userId, t.createdAt),
+		pgPolicy('ai_usage_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();

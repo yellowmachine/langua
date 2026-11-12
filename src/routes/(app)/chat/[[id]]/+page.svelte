@@ -1,13 +1,26 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
+	import Chip from '$lib/components/ui/Chip.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Languages from '@lucide/svelte/icons/languages';
+	import MessagesSquare from '@lucide/svelte/icons/messages-square';
+	import Plus from '@lucide/svelte/icons/plus';
+	import SendHorizontal from '@lucide/svelte/icons/send-horizontal';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+	import { announcer } from '$lib/announcer.svelte';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { afterNavigate, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import WordPanel, { type WordLookup } from '$lib/components/WordPanel.svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import { fetchSpeechAudio } from '$lib/audio';
+	import { drawer } from '$lib/drawer';
+	import { rovingFocus } from '$lib/rovingFocus';
 	import { LANGUAGES } from '$lib/languages';
 	import { LEVELS } from '$lib/levels';
 	import { CONVERSATION_TEMPLATES } from '$lib/conversationTemplates';
@@ -49,11 +62,21 @@
 	}
 
 	let conversationsOpen = $state(false);
+	// Phones: the chat options are folded away behind a button.
+	let settingsOpen = $state(false);
 	let wordPanelOpen = $state(false);
 
-	let chat = $derived(
-		new Chat({
-			id: data.activeId ?? undefined,
+	// One Chat per conversation: rebuilt only when the conversation changes,
+	// not on every invalidate (deleting another conversation, say), which
+	// would drop a reply that is still streaming in.
+	let chat = $derived.by(() => {
+		const id = data.activeId ?? undefined;
+		return untrack(() => createChat(id));
+	});
+
+	function createChat(id: string | undefined) {
+		return new Chat({
+			id,
 			messages: data.messages,
 			transport: new DefaultChatTransport({ api: resolve('/chat/api') }),
 			onFinish: ({ message, isAbort, isError }) => {
@@ -63,17 +86,32 @@
 					.map((part) => part.text)
 					.join('');
 				if (!text) return;
+				announcer.say(`Tutor: ${text}`);
 				if (autoPlay) {
-					fetchSpeechAudio(text, data.activeConversation?.targetLanguage).then((audio) =>
-						audio?.play()
-					);
+					// play() is refused without a recent click (autoplay policy):
+					// the speaker button is still there.
+					fetchSpeechAudio(text, data.activeConversation?.targetLanguage)
+						.then((audio) => audio?.play())
+						.catch(() => {});
 				}
 				if (quickReplies) {
 					fetchSuggestions(message.id, text);
 				}
 			}
-		})
-	);
+		});
+	}
+
+	// What belongs to the conversation on screen starts over with another one.
+	afterNavigate(({ from, to }) => {
+		if (from?.params?.id === to?.params?.id) return;
+		vocabExtraction = 'idle';
+		wordLookup = 'idle';
+		wordPanelOpen = false;
+		expandedTranslation = {};
+		sessionSuggestions = {};
+		lastSent = '';
+		input = '';
+	});
 
 	let input = $state('');
 	let busy = $derived(chat.status === 'streaming' || chat.status === 'submitted');
@@ -81,22 +119,54 @@
 	let newTitle = $state('');
 
 	let startingConversation = false;
+	// Conversation whose opening message failed: don't retry it on every
+	// effect run, only when the learner asks to.
+	let startFailedFor: string | null = $state(null);
 
-	$effect(() => {
-		if (!data.activeId || data.messages.length > 0 || startingConversation) return;
-
-		const conversationId = data.activeId;
+	function startConversation(conversationId: string) {
 		startingConversation = true;
+		startFailedFor = null;
 		fetch('/chat/start', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ conversationId })
 		})
-			.then(() => invalidateAll())
+			.then((response) => {
+				if (!response.ok) throw new Error(String(response.status));
+				return invalidateAll();
+			})
+			.then(() => {
+				// The Chat outlives invalidations: give it the opening message.
+				if (data.activeId === conversationId && chat.messages.length === 0) {
+					chat.messages = data.messages;
+				}
+			})
+			.catch(() => {
+				startFailedFor = conversationId;
+				announcer.alert('No se pudo empezar la conversación.');
+			})
 			.finally(() => {
 				startingConversation = false;
 			});
+	}
+
+	$effect(() => {
+		if (!data.activeId || data.messages.length > 0 || startingConversation) return;
+		if (startFailedFor === data.activeId) return;
+		startConversation(data.activeId);
 	});
+
+	// Last text the learner sent, to put back in the input if the reply fails.
+	let lastSent = $state('');
+
+	$effect(() => {
+		if (chat.error) announcer.alert('El tutor no ha podido responder.');
+	});
+
+	function retryReply() {
+		chat.clearError();
+		chat.regenerate();
+	}
 
 	let sessionAnalysis: Record<string, MessageAnalysis | 'loading'> = $state({});
 	let analysisByMessageId = $derived({ ...data.analysisByMessageId, ...sessionAnalysis });
@@ -128,6 +198,7 @@
 			}
 			const result: { translation: string } = await response.json();
 			sessionTranslation[messageId] = result.translation;
+			announcer.say(`Traducción: ${result.translation}`);
 		} catch {
 			delete sessionTranslation[messageId];
 		}
@@ -147,10 +218,16 @@
 			});
 			if (!response.ok) {
 				vocabExtraction = 'error';
+				announcer.alert('No se pudo extraer el vocabulario.');
 				return;
 			}
 			const result: { added: number } = await response.json();
 			vocabExtraction = { added: result.added };
+			announcer.say(
+				result.added > 0
+					? `${result.added} palabras nuevas en el libro de estudio`
+					: 'Sin palabras nuevas'
+			);
 		} catch {
 			vocabExtraction = 'error';
 		}
@@ -171,7 +248,11 @@
 				delete sessionAnalysis[messageId];
 				return;
 			}
-			sessionAnalysis[messageId] = await response.json();
+			const analysis: MessageAnalysis = await response.json();
+			sessionAnalysis[messageId] = analysis;
+			if (analysis.errors.length > 0 && analysis.explanation) {
+				announcer.say(`Corrección de tu mensaje: ${analysis.explanation}`);
+			}
 		} catch {
 			delete sessionAnalysis[messageId];
 		}
@@ -182,6 +263,7 @@
 		const text = input.trim();
 		if (!text || !data.activeId || busy) return;
 		input = '';
+		lastSent = text;
 		const id = crypto.randomUUID();
 		chat.sendMessage({ id, role: 'user', parts: [{ type: 'text', text }] });
 		analyzeMessage(id, data.activeId, text);
@@ -204,6 +286,7 @@
 			if (!response.ok) return;
 			const result: { translation: string } = await response.json();
 			input = result.translation;
+			announcer.say(`Mensaje traducido: ${result.translation}`);
 		} finally {
 			translatingInput = false;
 		}
@@ -228,6 +311,9 @@
 			}
 			const result: { suggestions: string[] } = await response.json();
 			sessionSuggestions[messageId] = result.suggestions;
+			if (result.suggestions.length > 0) {
+				announcer.say(`${result.suggestions.length} sugerencias de respuesta`);
+			}
 		} catch {
 			delete sessionSuggestions[messageId];
 		}
@@ -316,127 +402,66 @@
 	}
 </script>
 
-<div class="flex h-full flex-col">
-	<div
-		class="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between gap-4 border-b px-6 py-3"
-		style:border-color="var(--color-border)"
-	>
-		<div class="flex items-center gap-2">
-			<button
-				type="button"
-				onclick={() => {
-					newTitle = '';
-					newDialog?.showModal();
-				}}
-				class="rounded-md px-3 py-2 text-sm font-medium text-white"
-				style:background-color="var(--color-accent)"
-			>
-				Nueva conversación
-			</button>
+<svelte:head><title>{`${data.activeConversation?.title ?? 'Chat'} · Langua`}</title></svelte:head>
 
+<div class="flex h-full flex-col">
+	<h1 class="sr-only">{data.activeConversation?.title ?? 'Chat'}</h1>
+	<div class="mx-auto w-full max-w-6xl shrink-0 border-b border-border px-3 py-2 sm:px-6 sm:py-3">
+		<div class="flex items-center gap-2">
 			<button
 				type="button"
 				onclick={() => (conversationsOpen = true)}
 				aria-label="Ver conversaciones"
-				class="rounded-md border p-2 sm:hidden"
-				style:border-color="var(--color-border)"
+				class="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border sm:hidden"
 			>
-				<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
-					<path
-						stroke="currentColor"
-						stroke-width="1.8"
-						stroke-linecap="round"
-						d="M4 6h16M4 12h16M4 18h10"
-					/>
-				</svg>
+				<MessagesSquare class="h-5 w-5" aria-hidden="true" />
 			</button>
+
+			<Button
+				onclick={() => {
+					newTitle = '';
+					newDialog?.showModal();
+				}}
+			>
+				<Plus class="h-4 w-4" aria-hidden="true" />
+				<span class="sm:hidden">Nueva</span>
+				<span class="hidden sm:inline">Nueva conversación</span>
+			</Button>
+
+			{#if data.activeId}
+				<div class="ml-auto flex items-center gap-2 sm:hidden">
+					<button
+						type="button"
+						onclick={() => (settingsOpen = !settingsOpen)}
+						aria-expanded={settingsOpen}
+						aria-controls="chat-settings"
+						aria-label="Opciones del chat"
+						class="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border sm:hidden"
+					>
+						<SlidersHorizontal class="h-5 w-5" aria-hidden="true" />
+					</button>
+					<button
+						type="button"
+						onclick={() => (wordPanelOpen = true)}
+						aria-label="Ver panel de palabra"
+						class="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border sm:hidden"
+					>
+						<BookOpen class="h-5 w-5" aria-hidden="true" />
+					</button>
+				</div>
+
+				<!-- Inline from sm up; on phones they fold behind «Opciones del chat». -->
+				<div class="ml-auto hidden flex-wrap items-center gap-x-4 gap-y-1 sm:flex">
+					{@render settings()}
+				</div>
+			{/if}
 		</div>
-
 		{#if data.activeId}
-			<div class="flex flex-wrap items-center gap-4">
-				<div class="flex items-center gap-2 text-sm">
-					<button
-						type="button"
-						onclick={extractVocabulary}
-						disabled={vocabExtraction === 'loading'}
-						class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
-						style:border-color="var(--color-border)"
-					>
-						Extraer vocabulario
-					</button>
-					{#if vocabExtraction === 'loading'}
-						<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
-					{:else if vocabExtraction === 'error'}
-						<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
-					{:else if vocabExtraction !== 'idle'}
-						<span class="text-xs" style:color="var(--color-ink-muted)">
-							{vocabExtraction.added > 0
-								? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
-								: 'Sin palabras nuevas'} —
-							<a href={resolve('/study')} class="underline" style:color="var(--color-accent)"
-								>ver libro de estudio</a
-							>
-						</span>
-					{/if}
-				</div>
-
-				<div class="flex items-center gap-2 text-sm">
-					<span style:color="var(--color-ink-muted)">Leer respuestas en voz alta</span>
-					<button
-						type="button"
-						role="switch"
-						aria-checked={autoPlay}
-						aria-label="Leer respuestas en voz alta"
-						onclick={toggleAutoPlay}
-						class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
-						style:border-color="var(--color-border)"
-						style:background-color={autoPlay ? 'var(--color-accent)' : 'var(--color-surface)'}
-					>
-						<span
-							class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
-							class:translate-x-4={autoPlay}
-							class:translate-x-0.5={!autoPlay}
-						></span>
-					</button>
-				</div>
-
-				<div class="flex items-center gap-2 text-sm">
-					<span style:color="var(--color-ink-muted)">Sugerencias de respuesta</span>
-					<button
-						type="button"
-						role="switch"
-						aria-checked={quickReplies}
-						aria-label="Sugerencias de respuesta"
-						onclick={toggleQuickReplies}
-						class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
-						style:border-color="var(--color-border)"
-						style:background-color={quickReplies ? 'var(--color-accent)' : 'var(--color-surface)'}
-					>
-						<span
-							class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
-							class:translate-x-4={quickReplies}
-							class:translate-x-0.5={!quickReplies}
-						></span>
-					</button>
-				</div>
-
-				<button
-					type="button"
-					onclick={() => (wordPanelOpen = true)}
-					aria-label="Ver panel de palabra"
-					class="rounded-md border p-2 sm:hidden"
-					style:border-color="var(--color-border)"
-				>
-					<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
-						<path
-							stroke="currentColor"
-							stroke-width="1.8"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z"
-						/>
-					</svg>
-				</button>
+			<div
+				id="chat-settings"
+				class={['mt-2 flex-col items-start gap-1 sm:hidden', settingsOpen ? 'flex' : 'hidden']}
+			>
+				{@render settings()}
 			</div>
 		{/if}
 	</div>
@@ -444,14 +469,16 @@
 	{#if conversationsOpen}
 		<button
 			type="button"
-			aria-label="Cerrar"
+			tabindex="-1"
+			aria-hidden="true"
 			onclick={() => (conversationsOpen = false)}
 			class="fixed inset-0 z-30 bg-black/40 sm:hidden"
 		></button>
 	{/if}
 
-	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-6 p-6 sm:flex-row">
+	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-6 p-3 sm:flex-row sm:p-6">
 		<aside
+			{@attach drawer(conversationsOpen, () => (conversationsOpen = false), 'Conversaciones')}
 			class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-2 overflow-y-auto border-r p-4 shadow-xl sm:static sm:z-auto sm:flex sm:w-48 sm:max-w-none sm:gap-1 sm:border-0 sm:p-0 sm:shadow-none"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-background)"
@@ -541,25 +568,31 @@
 						>
 							<div class="flex items-end gap-1.5">
 								<div
+									{@attach rovingFocus}
+									lang={data.activeConversation?.targetLanguage}
 									class="min-w-0 rounded-lg px-3 py-2 text-sm break-words"
 									style:background-color={message.role === 'user'
 										? 'var(--color-accent)'
 										: 'var(--color-surface)'}
-									style:color={message.role === 'user' ? 'white' : 'var(--color-ink)'}
+									style:color={message.role === 'user'
+										? 'var(--color-on-accent)'
+										: 'var(--color-ink)'}
 								>
 									{#if analysisData && analysisData.errors.length > 0}
 										{#each buildHighlightSegments(text, analysisData.errors) as segment, i (i)}
 											{#if segment.type === 'spelling'}
 												<span
-													class="underline decoration-2 underline-offset-2"
-													style:text-decoration-style="wavy"
-													style:text-decoration-color="#f87171">{segment.text}</span
+													class="underline decoration-current decoration-wavy decoration-2 underline-offset-4"
+													>{segment.text}<span class="sr-only" lang="es">
+														(error de ortografía)</span
+													></span
 												>
 											{:else if segment.type === 'grammar'}
 												<span
-													class="underline decoration-2 underline-offset-2"
-													style:text-decoration-style="wavy"
-													style:text-decoration-color="#fbbf24">{segment.text}</span
+													class="underline decoration-current decoration-dashed decoration-2 underline-offset-4"
+													>{segment.text}<span class="sr-only" lang="es">
+														(error de gramática)</span
+													></span
 												>
 											{:else}
 												{segment.text}
@@ -570,6 +603,7 @@
 											{#if token.clickable}
 												<button
 													type="button"
+													data-word
 													onclick={() =>
 														lookupWord(token.text, sentenceContaining(text, token.start))}
 													class="hover:underline"
@@ -593,7 +627,7 @@
 									<SpeakButton {text} language={data.activeConversation?.targetLanguage} />
 								{/if}
 							</div>
-							{#if message.role === 'assistant' && text}
+							{#if message.role === 'assistant' && text && !(busy && message.id === chat.messages.at(-1)?.id)}
 								<button
 									type="button"
 									onclick={() => toggleTranslation(message.id, text)}
@@ -623,6 +657,14 @@
 									{analysisData.explanation}
 								</p>
 							{/if}
+							{#if analysisData && analysisData.errors.length > 0}
+								<!-- Screen readers get the kind of error inline instead. -->
+								<p class="text-xs text-ink-muted" aria-hidden="true">
+									<span class="underline decoration-wavy underline-offset-4">ortografía</span>
+									·
+									<span class="underline decoration-dashed underline-offset-4">gramática</span>
+								</p>
+							{/if}
 							{#if suggestions === 'loading'}
 								<p class="text-xs italic" style:color="var(--color-ink-muted)">
 									Pensando sugerencias...
@@ -630,20 +672,43 @@
 							{:else if Array.isArray(suggestions) && suggestions.length > 0}
 								<div class="flex flex-wrap gap-1.5">
 									{#each suggestions as suggestion, i (i)}
-										<button
-											type="button"
+										<Chip
+											lang={data.activeConversation?.targetLanguage}
 											onclick={() => useSuggestion(suggestion)}
-											class="rounded-full border border-dashed px-2.5 py-1 text-xs"
-											style:border-color="var(--color-accent)"
-											style:color="var(--color-accent)"
 										>
 											{suggestion}
-										</button>
+										</Chip>
 									{/each}
 								</div>
 							{/if}
 						</div>
 					{/each}
+					{#if startFailedFor === data.activeId && chat.messages.length === 0}
+						<div class="flex flex-wrap items-center gap-2 text-sm" role="alert">
+							<span style:color="var(--color-danger)">No se pudo empezar la conversación.</span>
+							<button
+								type="button"
+								onclick={() => data.activeId && startConversation(data.activeId)}
+								class="underline"
+							>
+								Reintentar
+							</button>
+						</div>
+					{/if}
+					{#if chat.error}
+						<div class="flex flex-wrap items-center gap-2 text-sm" role="alert">
+							<span style:color="var(--color-danger)">
+								El tutor no ha podido responder. Puede que falte crédito de IA en Seilide o que haya
+								un problema de conexión.
+							</span>
+							<button type="button" onclick={retryReply} class="underline">Reintentar</button>
+							{#if lastSent && !input}
+								<button type="button" onclick={() => (input = lastSent)} class="underline">
+									Recuperar mi mensaje
+								</button>
+							{/if}
+						</div>
+					{/if}
 				</div>
 
 				<form onsubmit={submit} class="flex items-center gap-2">
@@ -654,6 +719,9 @@
 					/>
 					<input
 						bind:value={input}
+						aria-label="Mensaje para el tutor"
+						maxlength={2000}
+						lang={data.activeConversation?.targetLanguage}
 						type="text"
 						placeholder="Escribe o graba un mensaje..."
 						disabled={busy}
@@ -661,23 +729,19 @@
 						style:border-color="var(--color-border)"
 						style:background-color="var(--color-background)"
 					/>
-					<button
-						type="button"
+					<Button
+						variant="secondary"
 						onclick={translateInput}
 						disabled={busy || translatingInput || !input.trim()}
-						class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
-						style:border-color="var(--color-border)"
+						aria-label={translatingInput ? 'Traduciendo…' : 'Traducir mi mensaje al idioma'}
 					>
-						{translatingInput ? 'Traduciendo...' : 'Traducir'}
-					</button>
-					<button
-						type="submit"
-						disabled={busy}
-						class="rounded-md px-4 py-2 text-sm font-medium text-white"
-						style:background-color="var(--color-accent)"
-					>
-						Enviar
-					</button>
+						<Languages class="h-4 w-4 sm:hidden" aria-hidden="true" />
+						<span class="hidden sm:inline">{translatingInput ? 'Traduciendo...' : 'Traducir'}</span>
+					</Button>
+					<Button type="submit" disabled={busy} aria-label="Enviar">
+						<SendHorizontal class="h-4 w-4 sm:hidden" aria-hidden="true" />
+						<span class="hidden sm:inline">Enviar</span>
+					</Button>
 				</form>
 			{/if}
 		</section>
@@ -697,6 +761,7 @@
 
 <dialog
 	bind:this={newDialog}
+	aria-labelledby="new-conversation-title"
 	onclick={(event) => {
 		if (event.target === newDialog) newDialog?.close();
 	}}
@@ -717,7 +782,7 @@
 		}}
 		class="flex flex-col gap-4 p-5"
 	>
-		<h2 class="text-lg font-semibold">Nueva conversación</h2>
+		<h2 id="new-conversation-title" class="text-lg font-semibold">Nueva conversación</h2>
 
 		<label class="flex flex-col gap-1 text-sm">
 			Idioma
@@ -725,7 +790,7 @@
 				name="targetLanguage"
 				required
 				value={data.user.targetLanguage ?? ''}
-				class="rounded-md border px-3 py-2"
+				class="rounded-md border py-2 pr-9 pl-3"
 				style:border-color="var(--color-border)"
 				style:background-color="var(--color-surface)"
 			>
@@ -742,7 +807,7 @@
 				name="level"
 				required
 				value="beginner"
-				class="rounded-md border px-3 py-2"
+				class="rounded-md border py-2 pr-9 pl-3"
 				style:border-color="var(--color-border)"
 				style:background-color="var(--color-surface)"
 			>
@@ -754,15 +819,9 @@
 
 		<div class="flex flex-wrap gap-1.5">
 			{#each CONVERSATION_TEMPLATES as template (template.label)}
-				<button
-					type="button"
-					onclick={() => (newTitle = template.title)}
-					class="rounded-full border border-dashed px-2.5 py-1 text-xs"
-					style:border-color="var(--color-accent)"
-					style:color="var(--color-accent)"
-				>
+				<Chip onclick={() => (newTitle = template.title)}>
 					{template.label}
-				</button>
+				</Chip>
 			{/each}
 		</div>
 
@@ -779,25 +838,38 @@
 		</label>
 
 		{#if form?.message}
-			<p class="text-sm text-red-600">{form.message}</p>
+			<p class="text-sm text-danger">{form.message}</p>
 		{/if}
 
 		<div class="flex justify-end gap-2">
-			<button
-				type="button"
-				onclick={() => newDialog?.close()}
-				class="rounded-md border px-3 py-2 text-sm"
-				style:border-color="var(--color-border)"
-			>
-				Cancelar
-			</button>
-			<button
-				type="submit"
-				class="rounded-md px-3 py-2 text-sm font-medium text-white"
-				style:background-color="var(--color-accent)"
-			>
-				Crear
-			</button>
+			<Button variant="secondary" onclick={() => newDialog?.close()}>Cancelar</Button>
+			<Button type="submit">Crear</Button>
 		</div>
 	</form>
 </dialog>
+
+{#snippet settings()}
+	<div class="flex flex-wrap items-center gap-2 text-sm">
+		<Button
+			variant="secondary"
+			onclick={extractVocabulary}
+			disabled={vocabExtraction === 'loading'}
+		>
+			Extraer vocabulario
+		</Button>
+		{#if vocabExtraction === 'loading'}
+			<span class="text-xs text-ink-muted italic">Extrayendo...</span>
+		{:else if vocabExtraction === 'error'}
+			<span class="text-xs text-danger">No se pudo extraer el vocabulario.</span>
+		{:else if vocabExtraction !== 'idle'}
+			<span class="text-xs text-ink-muted">
+				{vocabExtraction.added > 0
+					? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
+					: 'Sin palabras nuevas'} —
+				<a href={resolve('/study')} class="text-accent underline">ver libro de estudio</a>
+			</span>
+		{/if}
+	</div>
+	<Switch checked={autoPlay} label="Leer respuestas en voz alta" onchange={toggleAutoPlay} />
+	<Switch checked={quickReplies} label="Sugerencias de respuesta" onchange={toggleQuickReplies} />
+{/snippet}

@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -9,9 +9,14 @@ const cacheDir = await mkdtemp(path.join(tmpdir(), 'langua-tts-'));
 vi.mock('$env/dynamic/private', () => ({
 	env: { SEILIDE_URL: 'https://seilide.test', AUDIO_CACHE_DIR: cacheDir }
 }));
+const insertedUsage = vi.fn();
+vi.mock('$lib/server/db/rls', () => ({
+	withUserRLS: (_userId: string, fn: (tx: unknown) => unknown) =>
+		fn({ insert: () => ({ values: insertedUsage }) })
+}));
 vi.mock('../auth', () => ({ auth: { api: { getAccessToken } } }));
 
-const { instructionsFor, pcmToWav, synthesizeSpeech } = await import('./tts');
+const { instructionsFor, pcmToWav, pruneCache, synthesizeSpeech } = await import('./tts');
 
 function pcm(bytes: number[]) {
 	return new Response(new Uint8Array(bytes), {
@@ -144,5 +149,44 @@ describe('synthesizeSpeech', () => {
 			body: { message: 'No se ha podido generar la voz: No queda saldo en OpenRouter' }
 		});
 		expect(await readdir(cacheDir).catch(() => [])).toHaveLength(0);
+	});
+
+	it("asks again with its own token when someone else's same request failed", async () => {
+		getAccessToken.mockImplementation(async ({ body }: { body: { userId: string } }) => ({
+			accessToken: `token-${body.userId}`
+		}));
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		const fetchMock = vi.fn(async (_url: string, init: RequestInit) =>
+			(init.headers as Record<string, string>).Authorization === 'Bearer token-broke'
+				? Response.json({ error: { message: 'Sin saldo' } }, { status: 402 })
+				: pcm([7, 8])
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		const [broke, fine] = await Promise.allSettled([
+			synthesizeSpeech('broke', 'Bonjour', { language: 'fr' }),
+			synthesizeSpeech('fine', 'Bonjour', { language: 'fr' })
+		]);
+
+		expect(broke.status).toBe('rejected');
+		expect(fine.status).toBe('fulfilled');
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe('pruneCache', () => {
+	it('deletes the least recently played phrases until it fits', async () => {
+		await mkdir(cacheDir, { recursive: true });
+		const files = ['old', 'middle', 'new'];
+		for (const [i, name] of files.entries()) {
+			const file = path.join(cacheDir, `${name}.wav`);
+			await writeFile(file, new Uint8Array(100));
+			const when = new Date(2026, 0, i + 1);
+			await utimes(file, when, when);
+		}
+
+		await pruneCache(250);
+
+		expect((await readdir(cacheDir)).sort()).toEqual(['middle.wav', 'new.wav']);
 	});
 });

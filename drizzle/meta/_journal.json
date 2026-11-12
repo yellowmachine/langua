@@ -120,6 +120,34 @@
       "when": 1793372848007,
       "tag": "0016_user_voice",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794492140358,
+      "tag": "0017_listening_exercise",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794493252111,
+      "tag": "0018_vocab_srs",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794493493044,
+      "tag": "0019_speaking_attempt",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794496744453,
+      "tag": "0020_ai_usage",
+      "breakpoints": true
     }
   ]
 }

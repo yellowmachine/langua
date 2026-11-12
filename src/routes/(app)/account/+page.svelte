@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -48,6 +49,8 @@
 	}
 </script>
 
+<svelte:head><title>Mi cuenta · Langua</title></svelte:head>
+
 <div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
 	<header>
 		<h1 class="text-xl font-semibold">Mi cuenta</h1>
@@ -85,7 +88,7 @@
 					name="nativeLanguage"
 					value={data.user.nativeLanguage ?? ''}
 					required
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -101,7 +104,7 @@
 					name="targetLanguage"
 					value={data.user.targetLanguage ?? ''}
 					required
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -111,16 +114,10 @@
 					{/each}
 				</select>
 			</label>
-			<button
-				type="submit"
-				class="self-end rounded-md px-3 py-2 text-sm font-medium text-white"
-				style:background-color="var(--color-accent)"
-			>
-				Guardar
-			</button>
+			<Button class="self-end" type="submit">Guardar</Button>
 		</form>
 		{#if messageFor('language')}
-			<p class="text-sm text-red-600">{messageFor('language')}</p>
+			<p class="text-sm text-danger">{messageFor('language')}</p>
 		{/if}
 		{#if form?.formId === 'language' && 'success' in form}
 			<p class="text-sm" style:color="var(--color-accent)">
@@ -157,7 +154,7 @@
 				<select
 					name="voice"
 					value={data.user.voice ?? DEFAULT_VOICE}
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -172,7 +169,7 @@
 					<select
 						name="accent"
 						value={accentFor(data.user.targetLanguage, data.user.accent)?.code}
-						class="rounded-md border px-3 py-2"
+						class="rounded-md border py-2 pr-9 pl-3"
 						style:border-color="var(--color-border)"
 						style:background-color="var(--color-background)"
 					>
@@ -182,16 +179,10 @@
 					</select>
 				</label>
 			{/if}
-			<button
-				type="submit"
-				class="self-end rounded-md px-3 py-2 text-sm font-medium text-white"
-				style:background-color="var(--color-accent)"
-			>
-				Guardar
-			</button>
+			<Button class="self-end" type="submit">Guardar</Button>
 		</form>
 		{#if messageFor('voice')}
-			<p class="text-sm text-red-600">{messageFor('voice')}</p>
+			<p class="text-sm text-danger">{messageFor('voice')}</p>
 		{/if}
 		{#if data.user.targetLanguage && VOICE_SAMPLES[data.user.targetLanguage]}
 			<div class="flex items-center gap-3 text-sm">
@@ -239,14 +230,9 @@
 					Token «{newToken.name}» creado. Cópialo ahora: no se volverá a mostrar.
 				</p>
 				<code class="font-mono break-all">{newToken.token}</code>
-				<button
-					type="button"
-					onclick={() => copyToken(newToken.token)}
-					class="self-start rounded-md border px-3 py-1.5 text-sm"
-					style:border-color="var(--color-border)"
-				>
+				<Button variant="secondary" class="self-start" onclick={() => copyToken(newToken.token)}>
 					{copied ? 'Copiado' : 'Copiar'}
-				</button>
+				</Button>
 			</div>
 		{/if}
 
@@ -265,13 +251,7 @@
 						</div>
 						<form method="POST" action="?/revokeToken" use:enhance>
 							<input type="hidden" name="id" value={token.id} />
-							<button
-								type="submit"
-								class="rounded-md border px-3 py-1.5 text-sm text-red-600"
-								style:border-color="var(--color-border)"
-							>
-								Revocar
-							</button>
+							<Button variant="danger-outline" type="submit">Revocar</Button>
 						</form>
 					</li>
 				{/each}
@@ -302,15 +282,9 @@
 				/>
 			</label>
 			{#if messageFor('createToken')}
-				<p class="text-sm text-red-600">{messageFor('createToken')}</p>
+				<p class="text-sm text-danger">{messageFor('createToken')}</p>
 			{/if}
-			<button
-				type="submit"
-				class="self-start rounded-md px-3 py-2 text-sm font-medium text-white"
-				style:background-color="var(--color-accent)"
-			>
-				Crear token
-			</button>
+			<Button class="self-start" type="submit">Crear token</Button>
 		</form>
 	</section>
 </div>

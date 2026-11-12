@@ -1,4 +1,9 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+	import { untrack } from 'svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Chip from '$lib/components/ui/Chip.svelte';
+	import { announcer } from '$lib/announcer.svelte';
 	import { enhance } from '$app/forms';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import { LANGUAGES } from '$lib/languages';
@@ -6,25 +11,33 @@
 	import { LISTENING_EXERCISE_TYPES } from '$lib/listeningExerciseTypes';
 	import type { PageData } from './$types';
 
-	type Question = { question: string; options: string[]; correctIndex: number };
-	type GradedQuestion = Question & { selectedIndex: number };
+	// The correct answers only come back once the exercise has been graded.
+	type Question = { question: string; options: string[] };
+	type GradedQuestion = Question & { correctIndex: number; selectedIndex: number };
 
 	let { data }: { data: PageData } = $props();
 
-	let targetLanguage = $state(data.user.targetLanguage ?? LANGUAGES[0].code);
+	// The account's languages are only the starting choice: the selects own it.
+	let targetLanguage = $state(untrack(() => data.user.targetLanguage ?? LANGUAGES[0].code));
 	let level = $state<(typeof LEVELS)[number]['code']>('beginner');
 	let exerciseType = $state('');
 
-	let exercise = $state<{ passage: string; questions: Question[]; language: string } | null>(null);
+	let exercise = $state<{
+		exerciseId: string;
+		passage: string;
+		questions: Question[];
+		language: string;
+	} | null>(null);
 	let selected = $state<number[]>([]);
 	let generating = $state(false);
 	let submitting = $state(false);
 	let result = $state<{ graded: GradedQuestion[]; score: number } | null>(null);
+	let failure = $state('');
 
 	function scoreColor(score: number) {
 		if (score >= 85) return 'var(--color-accent)';
 		if (score >= 60) return 'var(--color-ink)';
-		return '#dc2626';
+		return 'var(--color-danger)';
 	}
 
 	let allAnswered = $derived(
@@ -33,6 +46,8 @@
 			selected.every((s) => s >= 0)
 	);
 </script>
+
+<svelte:head><title>Escuchar · Langua</title></svelte:head>
 
 <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
 	<header>
@@ -50,14 +65,23 @@
 			use:enhance={() => {
 				generating = true;
 				result = null;
+				failure = '';
 				return async ({ result: actionResult }) => {
 					generating = false;
 					if (actionResult.type === 'success' && actionResult.data) {
 						exercise = {
-							...(actionResult.data as { passage: string; questions: Question[] }),
+							...(actionResult.data as {
+								exerciseId: string;
+								passage: string;
+								questions: Question[];
+							}),
 							language: targetLanguage
 						};
 						selected = exercise.questions.map(() => -1);
+						announcer.say('Ejercicio listo. Pulsa escuchar y responde a las preguntas.');
+					} else {
+						failure = 'No se pudo crear el ejercicio. Inténtalo otra vez.';
+						announcer.alert(failure);
 					}
 				};
 			}}
@@ -68,7 +92,7 @@
 				<select
 					bind:value={targetLanguage}
 					name="targetLanguage"
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -83,7 +107,7 @@
 				<select
 					bind:value={level}
 					name="level"
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -93,26 +117,15 @@
 				</select>
 			</label>
 
-			<button
-				type="submit"
-				disabled={generating || submitting}
-				class="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-				style:background-color="var(--color-accent)"
-			>
+			<Button type="submit" disabled={generating || submitting}>
 				{generating ? 'Generando...' : exercise ? 'Otro ejercicio' : 'Nuevo ejercicio'}
-			</button>
+			</Button>
 
 			<div class="flex w-full flex-wrap gap-1.5">
 				{#each LISTENING_EXERCISE_TYPES as type (type.label)}
-					<button
-						type="button"
-						onclick={() => (exerciseType = type.prompt)}
-						class="rounded-full border border-dashed px-2.5 py-1 text-xs"
-						style:border-color="var(--color-accent)"
-						style:color="var(--color-accent)"
-					>
+					<Chip onclick={() => (exerciseType = type.prompt)}>
 						{type.label}
-					</button>
+					</Chip>
 				{/each}
 			</div>
 
@@ -130,6 +143,10 @@
 			</label>
 		</form>
 
+		{#if failure}
+			<p class="text-sm" style:color="var(--color-danger)">{failure}</p>
+		{/if}
+
 		{#if exercise}
 			<div class="flex items-center gap-2">
 				<SpeakButton text={exercise.passage} language={exercise.language} style="narration" />
@@ -141,22 +158,25 @@
 				action="?/submit"
 				use:enhance={() => {
 					submitting = true;
+					failure = '';
 					return async ({ result: actionResult }) => {
 						submitting = false;
 						if (actionResult.type === 'success' && actionResult.data) {
 							result = actionResult.data as { graded: GradedQuestion[]; score: number };
+							announcer.say(`Puntuación: ${result.score} de 100`);
+						} else {
+							failure = 'No se pudieron comprobar las respuestas. Inténtalo otra vez.';
+							announcer.alert(failure);
 						}
 					};
 				}}
 				class="flex flex-col gap-4"
 			>
-				<input type="hidden" name="passage" value={exercise.passage} />
-				<input type="hidden" name="questions" value={JSON.stringify(exercise.questions)} />
+				<input type="hidden" name="exerciseId" value={exercise.exerciseId} />
 				<input type="hidden" name="answers" value={JSON.stringify(selected)} />
-				<input type="hidden" name="targetLanguage" value={exercise.language} />
 
 				{#each exercise.questions as question, qi (qi)}
-					<fieldset class="flex flex-col gap-1.5">
+					<fieldset class="flex flex-col gap-1.5" lang={exercise.language}>
 						<legend class="text-sm font-medium">{question.question}</legend>
 						{#each question.options as option, oi (oi)}
 							<label class="flex items-center gap-2 text-sm">
@@ -164,9 +184,17 @@
 								{option}
 								{#if result}
 									{#if oi === result.graded[qi].correctIndex}
-										<span style:color="var(--color-accent)">✓</span>
+										<span style:color="var(--color-accent)"
+											><span aria-hidden="true">✓</span><span class="sr-only" lang="es"
+												>(correcta)</span
+											></span
+										>
 									{:else if oi === result.graded[qi].selectedIndex}
-										<span style:color="#dc2626">✗</span>
+										<span style:color="var(--color-danger)"
+											><span aria-hidden="true">✗</span><span class="sr-only" lang="es"
+												>(tu respuesta, incorrecta)</span
+											></span
+										>
 									{/if}
 								{/if}
 							</label>
@@ -175,14 +203,9 @@
 				{/each}
 
 				{#if !result}
-					<button
-						type="submit"
-						disabled={!allAnswered || submitting}
-						class="self-start rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-						style:background-color="var(--color-accent)"
-					>
+					<Button class="self-start" type="submit" disabled={!allAnswered || submitting}>
 						{submitting ? 'Corrigiendo...' : 'Comprobar respuestas'}
-					</button>
+					</Button>
 				{/if}
 			</form>
 
@@ -191,7 +214,9 @@
 					<p>
 						Puntuación: <strong style:color={scoreColor(result.score)}>{result.score}/100</strong>
 					</p>
-					<p class="mt-2" style:color="var(--color-ink-muted)">Transcripción: {exercise.passage}</p>
+					<p class="mt-2" style:color="var(--color-ink-muted)">
+						Transcripción: <span lang={exercise.language}>{exercise.passage}</span>
+					</p>
 				</div>
 			{/if}
 		{:else}
@@ -210,11 +235,16 @@
 			<h2 class="mb-3 text-sm font-medium">Últimos ejercicios</h2>
 			<ul class="flex flex-col gap-2 text-sm">
 				{#each data.recentAttempts as attempt (attempt.id)}
-					<li class="flex items-center justify-between gap-3">
-						<span style:color="var(--color-ink-muted)"
-							>{new Date(attempt.createdAt).toLocaleString('es')}</span
+					<li>
+						<a
+							href={resolve('/(app)/listen/[id]', { id: attempt.id })}
+							class="flex min-h-10 items-center justify-between gap-3 rounded-md px-2 hover:bg-background"
 						>
-						<span style:color={scoreColor(attempt.score)}>{attempt.score}/100</span>
+							<span class="text-ink-muted underline"
+								>{new Date(attempt.createdAt).toLocaleString('es')}</span
+							>
+							<span class="font-medium">{attempt.score}/100</span>
+						</a>
 					</li>
 				{/each}
 			</ul>

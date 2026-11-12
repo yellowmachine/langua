@@ -1,12 +1,15 @@
 // Config used only by the better-auth CLI (`bun run auth:schema`), which runs
 // outside Vite and can't resolve SvelteKit's `$app/*` virtual modules. The
 // running app uses auth.ts instead — see createAuthOptions in auth-options.ts.
-import 'dotenv/config';
+import { existsSync } from 'node:fs';
 import { betterAuth } from 'better-auth';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { createAuthOptions } from './auth-options';
 import * as schema from './db/schema';
+
+// dotenv isn't a dependency; Node (≥20.12) and Bun can read .env themselves.
+if (existsSync('.env')) process.loadEnvFile('.env');
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL is not set');
