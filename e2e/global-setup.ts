@@ -95,6 +95,26 @@ export default async function globalSetup() {
 		]
 	});
 
+	await owner.insert(schema.aiUsage).values([
+		{
+			id: 'usage-speech',
+			userId,
+			task: 'speech',
+			model: 'google/gemini-3.8-flash-tts',
+			characters: 120
+		},
+		{
+			id: 'usage-old-chat',
+			userId,
+			task: 'chat',
+			model: 'anthropic/claude-haiku-5.5',
+			inputTokens: 5000,
+			outputTokens: 800,
+			costUsd: '0.25',
+			createdAt: new Date(Date.now() - 45 * 24 * 3600_000)
+		}
+	]);
+
 	// better-auth's session cookie: `${token}.${base64 HMAC-SHA256}`, URL-encoded.
 	const signature = createHmac('sha256', AUTH_SECRET).update(SESSION_TOKEN).digest('base64');
 	await mkdir(dirname(STORAGE_STATE), { recursive: true });

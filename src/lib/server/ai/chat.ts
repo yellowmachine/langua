@@ -3,6 +3,8 @@ import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { auth } from '../auth';
 import { SEILIDE_PROVIDER_ID } from '../auth-options';
+import type { AiTask } from '$lib/aiTasks';
+import { meteredFetch } from './usage';
 
 const OPENROUTER_MODEL = env.OPENROUTER_MODEL || 'anthropic/claude-haiku-5.5';
 
@@ -16,12 +18,15 @@ export function createSeilideModel(params: {
 	seilideUrl: string;
 	accessToken: string;
 	modelId: string;
+	/** Notes each call's usage (see usage.ts); plain fetch when left out. */
+	fetch?: typeof fetch;
 }) {
 	const seilide = createOpenAICompatible({
 		name: 'seilide',
 		baseURL: `${params.seilideUrl}/api/ia/v1`,
 		apiKey: params.accessToken,
 		headers: { 'X-Title': 'Langua' },
+		fetch: params.fetch,
 		// Needed for generateObject (e.g. the Escuchar module) to send a
 		// real json_schema constraint instead of hoping the model free-forms
 		// valid JSON.
@@ -48,13 +53,17 @@ export async function getSeilideAccessToken(userId: string): Promise<string> {
 	return accessToken;
 }
 
-/** The model, on behalf of `userId` (see getSeilideAccessToken). */
-export async function getChatModel(userId: string) {
+/**
+ * The model, on behalf of `userId` (see getSeilideAccessToken), for `task`:
+ * what each call costs is noted under it, for Gasto en IA.
+ */
+export async function getChatModel(userId: string, task: AiTask) {
 	const accessToken = await getSeilideAccessToken(userId);
 
 	return createSeilideModel({
 		seilideUrl: env.SEILIDE_URL!,
 		accessToken,
-		modelId: OPENROUTER_MODEL
+		modelId: OPENROUTER_MODEL,
+		fetch: meteredFetch(userId, task, OPENROUTER_MODEL)
 	});
 }

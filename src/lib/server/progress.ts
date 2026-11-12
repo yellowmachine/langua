@@ -27,7 +27,22 @@ export const TIME_ZONE =
  * Postgres wouldn't see them as one.
  */
 export function localDay(column: unknown) {
-	return sql<string>`(${column} at time zone 'UTC' at time zone ${sql.raw(`'${TIME_ZONE}'`)})::date`;
+	return sql<string>`(${localTimestamp(column)})::date`;
+}
+
+const ZONE = sql.raw(`'${TIME_ZONE}'`);
+
+/** A UTC `timestamp` column as the family's wall-clock time. */
+export function localTimestamp(column: unknown) {
+	return sql`(${column} at time zone 'UTC' at time zone ${ZONE})`;
+}
+
+/** The family's wall-clock time now. */
+export const localNow = sql`(now() at time zone ${ZONE})`;
+
+/** Start (local date, YYYY-MM-DD) of the week (Monday) or month a UTC column falls in. */
+export function localPeriodStart(unit: 'week' | 'month', column: unknown) {
+	return sql<string>`date_trunc(${sql.raw(`'${unit}'`)}, ${localTimestamp(column)})::date`;
 }
 
 /** `YYYY-MM-DD` of `date` in `timeZone`. */

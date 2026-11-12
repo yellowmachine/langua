@@ -5,7 +5,7 @@
  * (the conversation's opening message). Structured-output requests (word
  * analysis, corrections…) get a 503, which the app treats as "couldn't".
  */
-import { HEARD, OPENING, REPLY, SPEAKING_SENTENCE, SPEAKING_TRANSLATION } from './replies';
+import { COST, HEARD, OPENING, REPLY, SPEAKING_SENTENCE, SPEAKING_TRANSLATION } from './replies';
 
 const port = Number(process.env.FAKE_SEILIDE_PORT ?? 4010);
 
@@ -26,7 +26,8 @@ function completion(content: string) {
 		created: 0,
 		model: 'fake',
 		choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-		usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+		// What OpenRouter charged, passed on by Seilide.
+		usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120, cost: COST }
 	});
 }
 
@@ -66,6 +67,12 @@ Bun.serve({
 					await Bun.sleep(20);
 				}
 				controller.enqueue(encoder.encode(chunk({}, 'stop')));
+				// OpenRouter's usage, cost included, comes in the stream's last event.
+				controller.enqueue(
+					encoder.encode(
+						`data: ${JSON.stringify({ id: 'fake', object: 'chat.completion.chunk', created: 0, model: 'fake', choices: [], usage: { prompt_tokens: 200, completion_tokens: 30, total_tokens: 230, cost: COST } })}\n\n`
+					)
+				);
 				controller.enqueue(encoder.encode('data: [DONE]\n\n'));
 				controller.close();
 			}

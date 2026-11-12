@@ -39,7 +39,7 @@ export const POST: RequestHandler = async (event) => {
 		// Already has messages (a real reply, or another call already opened it).
 		if (count > 0) return false;
 
-		const model = await getChatModel(event.locals.user!.id);
+		const model = await getChatModel(event.locals.user!.id, 'chat_opening');
 		const system = buildChatSystemPrompt(
 			conversation.targetLanguage,
 			conversation.title,

@@ -19,7 +19,7 @@ export async function generateSpeakingSentence(
 	level: string,
 	topic?: string | null
 ): Promise<SpeakingSentence> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'speaking_sentence');
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

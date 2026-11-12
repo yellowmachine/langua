@@ -37,7 +37,7 @@ export async function extractVocabulary(
 	nativeLanguage: string,
 	source: keyof typeof TRANSCRIPT_DESCRIPTIONS = 'chat'
 ): Promise<VocabularyExtraction> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'vocabulary');
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

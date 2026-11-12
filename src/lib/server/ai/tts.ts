@@ -15,6 +15,7 @@ import { env } from '$env/dynamic/private';
 import { englishNameForLanguage } from '$lib/languages';
 import { accentFor, DEFAULT_VOICE, type SpeechStyle, type VoiceId } from '$lib/voices';
 import { getSeilideAccessToken } from './chat';
+import { logUsage } from './usage';
 
 const AUDIO_CACHE_DIR = env.AUDIO_CACHE_DIR ?? './data/audio';
 /** Above this the least recently played phrases are deleted (default 1 GB). */
@@ -187,6 +188,15 @@ async function synthesizeToCache(
 		console.error(`[tts] Seilide refused speech (${response.status}): ${message}`);
 		error(502, `No se ha podido generar la voz: ${message}`);
 	}
+
+	// Billed by audio, and the answer doesn't say how much: noted without a cost.
+	void logUsage({
+		userId,
+		task: 'speech',
+		model: TTS_MODEL,
+		usage: { inputTokens: 0, outputTokens: 0, costUsd: null },
+		characters: text.length
+	});
 
 	// E.g. `audio/pcm;rate=24000;channels=1`.
 	const rate = Number(/rate=(\d+)/.exec(response.headers.get('content-type') ?? '')?.[1]) || 24_000;

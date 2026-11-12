@@ -19,7 +19,7 @@ export async function generateExampleSentence(
 	nativeLanguage: string,
 	existingSentences: string[]
 ): Promise<ExampleSentence> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'example_sentence');
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

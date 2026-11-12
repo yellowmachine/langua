@@ -9,6 +9,11 @@ const cacheDir = await mkdtemp(path.join(tmpdir(), 'langua-tts-'));
 vi.mock('$env/dynamic/private', () => ({
 	env: { SEILIDE_URL: 'https://seilide.test', AUDIO_CACHE_DIR: cacheDir }
 }));
+const insertedUsage = vi.fn();
+vi.mock('$lib/server/db/rls', () => ({
+	withUserRLS: (_userId: string, fn: (tx: unknown) => unknown) =>
+		fn({ insert: () => ({ values: insertedUsage }) })
+}));
 vi.mock('../auth', () => ({ auth: { api: { getAccessToken } } }));
 
 const { instructionsFor, pcmToWav, pruneCache, synthesizeSpeech } = await import('./tts');

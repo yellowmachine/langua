@@ -13,6 +13,7 @@
 	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import Mic from '@lucide/svelte/icons/mic';
 	import SpellCheck from '@lucide/svelte/icons/spell-check';
+	import Wallet from '@lucide/svelte/icons/wallet';
 
 	let { user }: { user: { name: string } } = $props();
 
@@ -30,6 +31,7 @@
 		{ href: resolve('/translate'), label: 'Traducir', icon: Languages },
 		{ href: resolve('/correct'), label: 'Corregir', icon: SpellCheck },
 		{ href: resolve('/speak'), label: 'Hablar', icon: Mic },
+		{ href: resolve('/costs'), label: 'Gasto en IA', icon: Wallet },
 		{ href: resolve('/progress'), label: 'Progreso', icon: ChartLine },
 		{ href: resolve('/account'), label: 'Mi cuenta', icon: CircleUser }
 	];

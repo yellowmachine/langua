@@ -39,7 +39,7 @@ export async function analyzeWritingStyle(
 	targetLanguage: string,
 	nativeLanguage: string
 ): Promise<WritingStyleAnalysis> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'writing_style');
 	const targetName = englishNameForLanguage(targetLanguage);
 	const nativeName = englishNameForLanguage(nativeLanguage);
 

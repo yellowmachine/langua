@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+	numeric,
 	pgTable,
 	text,
 	timestamp,
@@ -461,6 +462,38 @@ export const speakingAttempt = pgTable(
 	(t) => [
 		index('speaking_attempt_user_idx').on(t.userId, t.createdAt),
 		pgPolicy('speaking_attempt_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
+// One row per AI call made on a member's behalf (paid by their family through
+// Seilide): what for, with which model, its tokens and what OpenRouter charged.
+export const aiUsage = pgTable(
+	'ai_usage',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		/** An AiTask (src/lib/aiTasks.ts). */
+		task: text('task').notNull(),
+		model: text('model').notNull(),
+		inputTokens: integer('input_tokens').default(0).notNull(),
+		outputTokens: integer('output_tokens').default(0).notNull(),
+		/** Characters read aloud, for speech (which is billed by audio, not tokens). */
+		characters: integer('characters'),
+		// USD. What OpenRouter charged (usage.cost, passed on by Seilide), or
+		// tokens × list price when the answer came without it (cost_is_estimate).
+		// Null when unknown: speech comes back without a cost.
+		costUsd: numeric('cost_usd', { precision: 12, scale: 8 }),
+		costIsEstimate: boolean('cost_is_estimate').default(false).notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('ai_usage_user_idx').on(t.userId, t.createdAt),
+		pgPolicy('ai_usage_access', {
 			for: 'all',
 			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
 		})

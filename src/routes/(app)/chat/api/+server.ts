@@ -87,7 +87,7 @@ export const POST: RequestHandler = async (event) => {
 		parts: [{ type: 'text', text: row.content }]
 	}));
 
-	const model = await getChatModel(event.locals.user.id);
+	const model = await getChatModel(event.locals.user.id, 'chat');
 	const system = buildChatSystemPrompt(
 		conversation.targetLanguage,
 		conversation.title,

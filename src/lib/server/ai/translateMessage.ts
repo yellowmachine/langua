@@ -22,7 +22,7 @@ export async function translateMessage(
 	fromLanguage: string,
 	toLanguage: string
 ): Promise<MessageTranslation> {
-	const model = await getChatModel(userId);
+	const model = await getChatModel(userId, 'translation');
 	const fromName = englishNameForLanguage(fromLanguage);
 	const toName = englishNameForLanguage(toLanguage);
 
