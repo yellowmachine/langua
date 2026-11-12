@@ -113,17 +113,20 @@ Accesibilidad (WCAG 2.2 AA) — convenciones a mantener:
 
 ## 7. Estado y siguientes pasos
 
-Hecho: cuentas con Seilide, chat, TTS, STT + Hablar (sin frase objetivo),
-Escuchar, Clips, Corregir, Traducir, libro de estudio, progreso básico, RLS
-con tests contra Postgres y un e2e del chat (`bun run test`).
+Hecho: cuentas con Seilide; chat; TTS; STT; **Hablar** con frase objetivo
+puntuada palabra a palabra (y modo libre); **Escuchar**, con revisión de
+ejercicios pasados; Clips; Corregir; Traducir; **libro de estudio** con repaso
+espaciado (FSRS, `ts-fsrs`), edición y borrado; **Progreso** que cuenta chat,
+escucha, frases dichas, repasos y palabras nuevas. RLS con tests contra
+Postgres y e2e de los flujos principales (`bun run test`).
 
 Pendiente:
 
-- **Hablar** con frase objetivo, comparación y puntuación guardada.
-- **Progreso** que cuente también clips, vocabulario, corregir y hablar.
-- **Vocabulario** con repetición espaciada; poder borrar y editar palabras.
-- Revisar intentos antiguos de Escuchar.
 - Backups automáticos de `pgdata` y `clips_data`.
+- Que Corregir, Traducir y escuchar clips cuenten en Progreso (hoy no se
+  guardan).
+- Optimizar los parámetros de FSRS por persona con `vocab_review` cuando haya
+  historial suficiente.
 
 ## 8. Despliegue en producción
 
