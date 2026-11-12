@@ -73,6 +73,28 @@ export default async function globalSetup() {
 		}
 	]);
 
+	await owner.insert(schema.listeningAttempt).values({
+		id: 'listen-1',
+		userId,
+		targetLanguage: 'en',
+		passage: 'Tom buys bread every morning.',
+		score: 50,
+		questions: [
+			{
+				question: 'What does Tom buy?',
+				options: ['Milk', 'Bread', 'Eggs'],
+				correctIndex: 1,
+				selectedIndex: 1
+			},
+			{
+				question: 'When?',
+				options: ['At night', 'At noon', 'In the morning'],
+				correctIndex: 2,
+				selectedIndex: 0
+			}
+		]
+	});
+
 	// better-auth's session cookie: `${token}.${base64 HMAC-SHA256}`, URL-encoded.
 	const signature = createHmac('sha256', AUTH_SECRET).update(SESSION_TOKEN).digest('base64');
 	await mkdir(dirname(STORAGE_STATE), { recursive: true });

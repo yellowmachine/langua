@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { untrack } from 'svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Chip from '$lib/components/ui/Chip.svelte';
@@ -234,11 +235,16 @@
 			<h2 class="mb-3 text-sm font-medium">Últimos ejercicios</h2>
 			<ul class="flex flex-col gap-2 text-sm">
 				{#each data.recentAttempts as attempt (attempt.id)}
-					<li class="flex items-center justify-between gap-3">
-						<span style:color="var(--color-ink-muted)"
-							>{new Date(attempt.createdAt).toLocaleString('es')}</span
+					<li>
+						<a
+							href={resolve('/(app)/listen/[id]', { id: attempt.id })}
+							class="flex min-h-10 items-center justify-between gap-3 rounded-md px-2 hover:bg-background"
 						>
-						<span style:color={scoreColor(attempt.score)}>{attempt.score}/100</span>
+							<span class="text-ink-muted underline"
+								>{new Date(attempt.createdAt).toLocaleString('es')}</span
+							>
+							<span class="font-medium">{attempt.score}/100</span>
+						</a>
 					</li>
 				{/each}
 			</ul>
