@@ -134,6 +134,13 @@
       "when": 1794493252111,
       "tag": "0018_vocab_srs",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794493493044,
+      "tag": "0019_speaking_attempt",
+      "breakpoints": true
     }
   ]
 }

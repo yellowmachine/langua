@@ -11,7 +11,15 @@ export default defineConfig({
 	workers: 1,
 	globalSetup: './e2e/global-setup.ts',
 	globalTeardown: './e2e/global-teardown.ts',
-	use: { baseURL: `http://localhost:${APP_PORT}`, storageState: STORAGE_STATE },
+	use: {
+		baseURL: `http://localhost:${APP_PORT}`,
+		storageState: STORAGE_STATE,
+		// A fake microphone, already allowed, for the recording buttons.
+		launchOptions: {
+			args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream']
+		},
+		permissions: ['microphone']
+	},
 	webServer: [
 		{
 			command: 'bun e2e/fake-seilide.ts',

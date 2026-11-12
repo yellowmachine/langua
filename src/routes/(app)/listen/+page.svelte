@@ -91,7 +91,7 @@
 				<select
 					bind:value={targetLanguage}
 					name="targetLanguage"
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -106,7 +106,7 @@
 				<select
 					bind:value={level}
 					name="level"
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>

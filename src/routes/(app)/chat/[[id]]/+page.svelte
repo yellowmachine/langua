@@ -790,7 +790,7 @@
 				name="targetLanguage"
 				required
 				value={data.user.targetLanguage ?? ''}
-				class="rounded-md border px-3 py-2"
+				class="rounded-md border py-2 pr-9 pl-3"
 				style:border-color="var(--color-border)"
 				style:background-color="var(--color-surface)"
 			>
@@ -807,7 +807,7 @@
 				name="level"
 				required
 				value="beginner"
-				class="rounded-md border px-3 py-2"
+				class="rounded-md border py-2 pr-9 pl-3"
 				style:border-color="var(--color-border)"
 				style:background-color="var(--color-surface)"
 			>

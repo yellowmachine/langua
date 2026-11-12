@@ -61,7 +61,7 @@
 		<select
 			bind:value={sourceLanguage}
 			aria-label="Idioma de origen"
-			class="flex-1 rounded-md border px-3 py-2 text-sm"
+			class="flex-1 rounded-md border py-2 pr-9 pl-3 text-sm"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-surface)"
 		>
@@ -91,7 +91,7 @@
 		<select
 			bind:value={targetLanguage}
 			aria-label="Idioma de destino"
-			class="flex-1 rounded-md border px-3 py-2 text-sm"
+			class="flex-1 rounded-md border py-2 pr-9 pl-3 text-sm"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-surface)"
 		>

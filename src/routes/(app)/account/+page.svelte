@@ -88,7 +88,7 @@
 					name="nativeLanguage"
 					value={data.user.nativeLanguage ?? ''}
 					required
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -104,7 +104,7 @@
 					name="targetLanguage"
 					value={data.user.targetLanguage ?? ''}
 					required
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -154,7 +154,7 @@
 				<select
 					name="voice"
 					value={data.user.voice ?? DEFAULT_VOICE}
-					class="rounded-md border px-3 py-2"
+					class="rounded-md border py-2 pr-9 pl-3"
 					style:border-color="var(--color-border)"
 					style:background-color="var(--color-background)"
 				>
@@ -169,7 +169,7 @@
 					<select
 						name="accent"
 						value={accentFor(data.user.targetLanguage, data.user.accent)?.code}
-						class="rounded-md border px-3 py-2"
+						class="rounded-md border py-2 pr-9 pl-3"
 						style:border-color="var(--color-border)"
 						style:background-color="var(--color-background)"
 					>

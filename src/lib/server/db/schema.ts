@@ -442,3 +442,27 @@ export const vocabReview = pgTable(
 		})
 	]
 ).enableRLS();
+
+// A sentence said aloud in Hablar, compared word by word with what the
+// speech-to-text heard.
+export const speakingAttempt = pgTable(
+	'speaking_attempt',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		targetLanguage: text('target_language').notNull(),
+		targetText: text('target_text').notNull(),
+		transcript: text('transcript').notNull(),
+		score: integer('score').notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('speaking_attempt_user_idx').on(t.userId, t.createdAt),
+		pgPolicy('speaking_attempt_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
