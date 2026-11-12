@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { asc, desc, eq } from 'drizzle-orm';
 import { chatConversation, chatMessage } from '$lib/server/db/schema';
 import { LANGUAGES } from '$lib/languages';
@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 	const activeId = params.id ?? conversations[0]?.id ?? null;
 	const activeConversation = conversations.find((c) => c.id === activeId) ?? null;
+	if (params.id && !activeConversation) error(404, 'Conversación no encontrada');
 
 	const rows = activeId
 		? await locals.withRLS((tx) =>

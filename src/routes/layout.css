@@ -9,6 +9,7 @@
 	--color-ink: var(--langua-ink);
 	--color-ink-muted: var(--langua-ink-muted);
 	--color-border: var(--langua-border);
+	--color-danger: var(--langua-danger);
 }
 
 :root {
@@ -18,6 +19,12 @@
 	--langua-ink: #2a2420;
 	--langua-ink-muted: #6b6258;
 	--langua-border: #e2ddd4;
+	--langua-danger: #b91c1c;
+}
+
+/* Estados: dependen solo de claro/oscuro, no de la paleta. */
+:root.dark {
+	--langua-danger: #f87171;
 }
 
 :root.dark {
@@ -91,6 +98,7 @@
 	--langua-ink: #000000;
 	--langua-ink-muted: #000000;
 	--langua-border: #000000;
+	--langua-danger: #a00000;
 }
 
 :root.high-contrast.dark {
@@ -100,6 +108,7 @@
 	--langua-ink: #ffffff;
 	--langua-ink-muted: #ffffff;
 	--langua-border: #ffffff;
+	--langua-danger: #ff8080;
 }
 
 body {

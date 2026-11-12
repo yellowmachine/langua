@@ -81,22 +81,43 @@
 	let newTitle = $state('');
 
 	let startingConversation = false;
+	// Conversation whose opening message failed: don't retry it on every
+	// effect run, only when the learner asks to.
+	let startFailedFor: string | null = $state(null);
 
-	$effect(() => {
-		if (!data.activeId || data.messages.length > 0 || startingConversation) return;
-
-		const conversationId = data.activeId;
+	function startConversation(conversationId: string) {
 		startingConversation = true;
+		startFailedFor = null;
 		fetch('/chat/start', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ conversationId })
 		})
-			.then(() => invalidateAll())
+			.then((response) => {
+				if (!response.ok) throw new Error(String(response.status));
+				return invalidateAll();
+			})
+			.catch(() => {
+				startFailedFor = conversationId;
+			})
 			.finally(() => {
 				startingConversation = false;
 			});
+	}
+
+	$effect(() => {
+		if (!data.activeId || data.messages.length > 0 || startingConversation) return;
+		if (startFailedFor === data.activeId) return;
+		startConversation(data.activeId);
 	});
+
+	// Last text the learner sent, to put back in the input if the reply fails.
+	let lastSent = $state('');
+
+	function retryReply() {
+		chat.clearError();
+		chat.regenerate();
+	}
 
 	let sessionAnalysis: Record<string, MessageAnalysis | 'loading'> = $state({});
 	let analysisByMessageId = $derived({ ...data.analysisByMessageId, ...sessionAnalysis });
@@ -182,6 +203,7 @@
 		const text = input.trim();
 		if (!text || !data.activeId || busy) return;
 		input = '';
+		lastSent = text;
 		const id = crypto.randomUUID();
 		chat.sendMessage({ id, role: 'user', parts: [{ type: 'text', text }] });
 		analyzeMessage(id, data.activeId, text);
@@ -593,7 +615,7 @@
 									<SpeakButton {text} language={data.activeConversation?.targetLanguage} />
 								{/if}
 							</div>
-							{#if message.role === 'assistant' && text}
+							{#if message.role === 'assistant' && text && !(busy && message.id === chat.messages.at(-1)?.id)}
 								<button
 									type="button"
 									onclick={() => toggleTranslation(message.id, text)}
@@ -644,6 +666,32 @@
 							{/if}
 						</div>
 					{/each}
+					{#if startFailedFor === data.activeId && chat.messages.length === 0}
+						<div class="flex flex-wrap items-center gap-2 text-sm" role="alert">
+							<span style:color="var(--color-danger)">No se pudo empezar la conversación.</span>
+							<button
+								type="button"
+								onclick={() => data.activeId && startConversation(data.activeId)}
+								class="underline"
+							>
+								Reintentar
+							</button>
+						</div>
+					{/if}
+					{#if chat.error}
+						<div class="flex flex-wrap items-center gap-2 text-sm" role="alert">
+							<span style:color="var(--color-danger)">
+								El tutor no ha podido responder. Puede que falte crédito de IA en Seilide o que haya
+								un problema de conexión.
+							</span>
+							<button type="button" onclick={retryReply} class="underline">Reintentar</button>
+							{#if lastSent && !input}
+								<button type="button" onclick={() => (input = lastSent)} class="underline">
+									Recuperar mi mensaje
+								</button>
+							{/if}
+						</div>
+					{/if}
 				</div>
 
 				<form onsubmit={submit} class="flex items-center gap-2">

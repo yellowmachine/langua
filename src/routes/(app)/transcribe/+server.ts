@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { transcribeSpeech } from '$lib/server/ai/stt';
+import { LANGUAGES } from '$lib/languages';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async (event) => {
@@ -9,7 +10,15 @@ export const POST: RequestHandler = async (event) => {
 	const audio = form.get('audio');
 	if (!(audio instanceof File)) error(400, 'audio is required');
 
-	const text = await transcribeSpeech(audio, event.locals.user.targetLanguage);
+	// The recorder sends the language it is dictating in (a conversation's or
+	// the one picked in /speak); the account's target language is only the
+	// fallback, otherwise whisper is forced into the wrong language.
+	const requested = form.get('language');
+	const language = LANGUAGES.some((lang) => lang.code === requested)
+		? (requested as string)
+		: event.locals.user.targetLanguage;
+
+	const text = await transcribeSpeech(audio, language);
 
 	return json({ text });
 };

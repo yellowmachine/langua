@@ -75,7 +75,12 @@ export const POST: RequestHandler = async (event) => {
 						role: 'assistant',
 						content: textFromMessage(responseMessage)
 					})
-					.onConflictDoNothing({ target: chatMessage.id });
+					// /chat/translate may have upserted this row with the text as it
+					// was mid-stream; the finished text must win.
+					.onConflictDoUpdate({
+						target: chatMessage.id,
+						set: { content: textFromMessage(responseMessage) }
+					});
 			});
 		}
 	});
