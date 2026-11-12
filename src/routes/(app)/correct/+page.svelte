@@ -52,6 +52,8 @@
 	}
 </script>
 
+<svelte:head><title>Corregir · Langua</title></svelte:head>
+
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
 	<h1 class="text-lg font-semibold">Corregir</h1>
 
@@ -71,6 +73,7 @@
 
 	<textarea
 		bind:value={text}
+		lang={targetLanguage}
 		rows="8"
 		placeholder="Escribe aquí tu texto para que lo revise..."
 		class="rounded-md border px-3 py-2 text-sm"
@@ -81,16 +84,20 @@
 		type="button"
 		onclick={check}
 		disabled={result === 'loading' || !text.trim()}
-		class="w-fit rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+		class="w-fit rounded-md px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-60"
 		style:background-color="var(--color-accent)"
 	>
 		{result === 'loading' ? 'Revisando...' : 'Corregir'}
 	</button>
 
 	{#if result === 'error'}
-		<p class="text-sm" style:color="#f87171">No se pudo revisar el texto.</p>
+		<p class="text-sm" style:color="var(--color-danger)">No se pudo revisar el texto.</p>
 	{:else if result !== 'idle' && result !== 'loading'}
 		<SentenceAnalysis analysis={result.styleAnalysis} />
-		<CorrectionsList corrections={result.corrections} overallFeedback={result.overallFeedback} />
+		<CorrectionsList
+			corrections={result.corrections}
+			overallFeedback={result.overallFeedback}
+			language={targetLanguage}
+		/>
 	{/if}
 </div>

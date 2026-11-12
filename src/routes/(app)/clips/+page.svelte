@@ -13,6 +13,8 @@
 	}
 </script>
 
+<svelte:head><title>Clips · Langua</title></svelte:head>
+
 <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
 	<header>
 		<h1 class="text-xl font-semibold">Clips</h1>
@@ -46,7 +48,7 @@
 							{#if clip.transcriptionStatus === 'pending'}
 								· transcribiendo…
 							{:else if clip.transcriptionStatus === 'failed'}
-								· <span class="text-red-600">sin transcripción</span>
+								· <span class="text-danger">sin transcripción</span>
 							{/if}
 						</span>
 					</a>

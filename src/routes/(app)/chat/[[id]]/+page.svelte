@@ -338,6 +338,8 @@
 	}
 </script>
 
+<svelte:head><title>{`${data.activeConversation?.title ?? 'Chat'} · Langua`}</title></svelte:head>
+
 <div class="flex h-full flex-col">
 	<div
 		class="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between gap-4 border-b px-6 py-3"
@@ -350,7 +352,7 @@
 					newTitle = '';
 					newDialog?.showModal();
 				}}
-				class="rounded-md px-3 py-2 text-sm font-medium text-white"
+				class="rounded-md px-3 py-2 text-sm font-medium text-on-accent"
 				style:background-color="var(--color-accent)"
 			>
 				Nueva conversación
@@ -389,7 +391,9 @@
 					{#if vocabExtraction === 'loading'}
 						<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
 					{:else if vocabExtraction === 'error'}
-						<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
+						<span class="text-xs" style:color="var(--color-danger)"
+							>No se pudo extraer el vocabulario.</span
+						>
 					{:else if vocabExtraction !== 'idle'}
 						<span class="text-xs" style:color="var(--color-ink-muted)">
 							{vocabExtraction.added > 0
@@ -563,11 +567,14 @@
 						>
 							<div class="flex items-end gap-1.5">
 								<div
+									lang={data.activeConversation?.targetLanguage}
 									class="min-w-0 rounded-lg px-3 py-2 text-sm break-words"
 									style:background-color={message.role === 'user'
 										? 'var(--color-accent)'
 										: 'var(--color-surface)'}
-									style:color={message.role === 'user' ? 'white' : 'var(--color-ink)'}
+									style:color={message.role === 'user'
+										? 'var(--color-on-accent)'
+										: 'var(--color-ink)'}
 								>
 									{#if analysisData && analysisData.errors.length > 0}
 										{#each buildHighlightSegments(text, analysisData.errors) as segment, i (i)}
@@ -575,13 +582,13 @@
 												<span
 													class="underline decoration-2 underline-offset-2"
 													style:text-decoration-style="wavy"
-													style:text-decoration-color="#f87171">{segment.text}</span
+													style:text-decoration-color="var(--color-danger)">{segment.text}</span
 												>
 											{:else if segment.type === 'grammar'}
 												<span
 													class="underline decoration-2 underline-offset-2"
 													style:text-decoration-style="wavy"
-													style:text-decoration-color="#fbbf24">{segment.text}</span
+													style:text-decoration-color="var(--color-warning)">{segment.text}</span
 												>
 											{:else}
 												{segment.text}
@@ -654,6 +661,7 @@
 									{#each suggestions as suggestion, i (i)}
 										<button
 											type="button"
+											lang={data.activeConversation?.targetLanguage}
 											onclick={() => useSuggestion(suggestion)}
 											class="rounded-full border border-dashed px-2.5 py-1 text-xs"
 											style:border-color="var(--color-accent)"
@@ -702,6 +710,7 @@
 					/>
 					<input
 						bind:value={input}
+						lang={data.activeConversation?.targetLanguage}
 						type="text"
 						placeholder="Escribe o graba un mensaje..."
 						disabled={busy}
@@ -721,7 +730,7 @@
 					<button
 						type="submit"
 						disabled={busy}
-						class="rounded-md px-4 py-2 text-sm font-medium text-white"
+						class="rounded-md px-4 py-2 text-sm font-medium text-on-accent"
 						style:background-color="var(--color-accent)"
 					>
 						Enviar
@@ -827,7 +836,7 @@
 		</label>
 
 		{#if form?.message}
-			<p class="text-sm text-red-600">{form.message}</p>
+			<p class="text-sm text-danger">{form.message}</p>
 		{/if}
 
 		<div class="flex justify-end gap-2">
@@ -841,7 +850,7 @@
 			</button>
 			<button
 				type="submit"
-				class="rounded-md px-3 py-2 text-sm font-medium text-white"
+				class="rounded-md px-3 py-2 text-sm font-medium text-on-accent"
 				style:background-color="var(--color-accent)"
 			>
 				Crear

@@ -62,7 +62,7 @@
 {/snippet}
 
 {#snippet pause(size: string)}
-	<svg class={size} viewBox="0 0 24 24" fill="white">
+	<svg class={size} viewBox="0 0 24 24" fill="var(--color-on-accent)">
 		<rect x="7" y="6" width="4" height="12" rx="1.2" />
 		<rect x="13" y="6" width="4" height="12" rx="1.2" />
 	</svg>

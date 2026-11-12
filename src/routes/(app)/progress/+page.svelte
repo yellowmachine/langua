@@ -23,6 +23,8 @@
 	}
 </script>
 
+<svelte:head><title>Progreso · Langua</title></svelte:head>
+
 <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
 	<header>
 		<h1 class="text-xl font-semibold">Progreso</h1>

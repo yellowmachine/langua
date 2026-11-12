@@ -9,6 +9,8 @@
 	let targetLanguage = $state(data.user.targetLanguage ?? LANGUAGES[1].code);
 	let text = $state('');
 	let result: 'idle' | 'loading' | string | 'error' = $state('idle');
+	// Language the shown translation is in (the selects may change afterwards).
+	let resultLanguage = $state('');
 
 	function swapLanguages() {
 		[sourceLanguage, targetLanguage] = [targetLanguage, sourceLanguage];
@@ -19,6 +21,7 @@
 		if (!trimmed) return;
 
 		result = 'loading';
+		const toLanguage = targetLanguage;
 		try {
 			const response = await fetch('/translate/api', {
 				method: 'POST',
@@ -26,7 +29,7 @@
 				body: JSON.stringify({
 					text: trimmed,
 					fromLanguage: sourceLanguage,
-					toLanguage: targetLanguage
+					toLanguage
 				})
 			});
 			if (!response.ok) {
@@ -34,12 +37,15 @@
 				return;
 			}
 			const data: { translation: string } = await response.json();
+			resultLanguage = toLanguage;
 			result = data.translation;
 		} catch {
 			result = 'error';
 		}
 	}
 </script>
+
+<svelte:head><title>Traducir · Langua</title></svelte:head>
 
 <div class="mx-auto flex w-full max-w-2xl flex-col gap-6 p-6">
 	<h1 class="text-lg font-semibold">Traducir</h1>
@@ -88,6 +94,7 @@
 
 	<textarea
 		bind:value={text}
+		lang={sourceLanguage}
 		rows="5"
 		placeholder="Escribe el texto a traducir..."
 		class="rounded-md border px-3 py-2 text-sm"
@@ -98,22 +105,22 @@
 		type="button"
 		onclick={translate}
 		disabled={result === 'loading' || !text.trim()}
-		class="w-fit rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+		class="w-fit rounded-md px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-60"
 		style:background-color="var(--color-accent)"
 	>
 		{result === 'loading' ? 'Traduciendo...' : 'Traducir'}
 	</button>
 
 	{#if result === 'error'}
-		<p class="text-sm" style:color="#f87171">No se pudo traducir el texto.</p>
+		<p class="text-sm" style:color="var(--color-danger)">No se pudo traducir el texto.</p>
 	{:else if result !== 'idle' && result !== 'loading'}
 		<div
 			class="flex items-start gap-2 rounded-md border px-3 py-2 text-sm"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-surface)"
 		>
-			<p class="flex-1">{result}</p>
-			<SpeakButton text={result} language={targetLanguage} />
+			<p class="flex-1" lang={resultLanguage}>{result}</p>
+			<SpeakButton text={result} language={resultLanguage} />
 		</div>
 	{/if}
 </div>

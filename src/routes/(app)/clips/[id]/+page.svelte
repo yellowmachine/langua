@@ -285,6 +285,8 @@
 	}
 </script>
 
+<svelte:head><title>{`${clipOrigin(data.clip)} · Clips · Langua`}</title></svelte:head>
+
 <div class="mx-auto flex w-full max-w-6xl gap-6 p-6">
 	<div class="flex min-w-0 flex-1 flex-col gap-6">
 		<header class="flex flex-col gap-1">
@@ -328,7 +330,7 @@
 					use:enhance
 					class="flex flex-wrap items-center gap-3 p-2"
 				>
-					<p class="text-sm text-red-600">
+					<p class="text-sm text-danger">
 						{data.clip.transcriptionStatus === 'failed'
 							? 'No se pudo transcribir este clip.'
 							: 'La transcripción se interrumpió.'}
@@ -390,7 +392,9 @@
 				{#if vocabExtraction === 'loading'}
 					<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
 				{:else if vocabExtraction === 'error'}
-					<span class="text-xs" style:color="#f87171">No se pudo extraer el vocabulario.</span>
+					<span class="text-xs" style:color="var(--color-danger)"
+						>No se pudo extraer el vocabulario.</span
+					>
 				{:else if vocabExtraction !== 'idle'}
 					<span class="text-xs" style:color="var(--color-ink-muted)">
 						{vocabExtraction.added > 0
@@ -409,8 +413,8 @@
 				<span class="text-sm">¿Borrar este clip y su audio?</span>
 				<button
 					type="submit"
-					class="rounded-md px-3 py-1.5 text-sm font-medium text-white"
-					style:background-color="#dc2626"
+					class="rounded-md px-3 py-1.5 text-sm font-medium text-on-danger"
+					style:background-color="var(--color-danger)"
 				>
 					Borrar
 				</button>
@@ -426,7 +430,7 @@
 				<button
 					type="button"
 					onclick={() => (confirmingDelete = true)}
-					class="rounded-md border px-3 py-1.5 text-sm text-red-600"
+					class="rounded-md border px-3 py-1.5 text-sm text-danger"
 					style:border-color="var(--color-border)"
 				>
 					Borrar clip
@@ -461,7 +465,7 @@
 			{formatTimestamp(start)}
 		</button>
 		<span class="flex min-w-0 flex-col">
-			<span class="whitespace-pre-line">
+			<span class="whitespace-pre-line" lang={data.clip.language ?? undefined}>
 				{#if data.clip.language}
 					{#each splitIntoWords(text) as token, t (t)}
 						{#if token.clickable}
@@ -500,7 +504,7 @@
 					Traducir
 				</button>
 				{#if translation === 'error'}
-					<p class="text-xs" style:color="#f87171">No se pudo traducir la frase.</p>
+					<p class="text-xs" style:color="var(--color-danger)">No se pudo traducir la frase.</p>
 				{/if}
 			{:else if translation === 'loading'}
 				<p class="text-xs italic" style:color="var(--color-ink-muted)">Traduciendo...</p>
@@ -608,7 +612,7 @@
 			type="button"
 			onclick={togglePlay}
 			aria-label={paused ? 'Reproducir' : 'Pausar'}
-			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+			class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-on-accent"
 			style:background-color="var(--color-accent)"
 		>
 			{#if paused}

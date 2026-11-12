@@ -78,11 +78,11 @@
 	{:else if lookup === 'loading'}
 		<p class="text-xs italic" style:color="var(--color-ink-muted)">Analizando...</p>
 	{:else if lookup === 'error'}
-		<p class="text-xs" style:color="#f87171">No se pudo analizar la palabra.</p>
+		<p class="text-xs" style:color="var(--color-danger)">No se pudo analizar la palabra.</p>
 	{:else}
 		<div class="flex flex-col gap-2 text-sm">
 			<div class="flex items-center gap-2">
-				<span class="font-medium">{lookup.word}</span>
+				<span class="font-medium" lang={language ?? undefined}>{lookup.word}</span>
 				<SpeakButton text={lookup.word} {language} style="word" />
 			</div>
 			<span class="text-xs" style:color="var(--color-ink-muted)">
@@ -91,13 +91,15 @@
 			<p>{lookup.translation}</p>
 			<p class="text-xs" style:color="var(--color-ink-muted)">{lookup.explanation}</p>
 			{#if lookup.sentence}
-				<p class="text-xs italic" style:color="var(--color-ink-muted)">{lookup.sentence}</p>
+				<p class="text-xs italic" lang={language ?? undefined} style:color="var(--color-ink-muted)">
+					{lookup.sentence}
+				</p>
 			{/if}
 			<button
 				type="button"
 				onclick={onsave}
 				disabled={lookup.saved}
-				class="w-fit rounded-md px-2.5 py-1 text-xs font-medium text-white disabled:opacity-60"
+				class="w-fit rounded-md px-2.5 py-1 text-xs font-medium text-on-accent disabled:opacity-60"
 				style:background-color="var(--color-accent)"
 			>
 				{lookup.saved ? 'Añadida al libro de estudio' : 'Añadir al libro de estudio'}

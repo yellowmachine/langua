@@ -59,12 +59,13 @@
 	disabled={disabled || status === 'transcribing'}
 	aria-label={status === 'recording' ? 'Detener grabación' : 'Grabar mensaje de voz'}
 	class="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50"
-	style:background-color={status === 'recording' ? '#dc2626' : 'var(--color-accent)'}
+	style:background-color={status === 'recording' ? 'var(--color-danger)' : 'var(--color-accent)'}
+	style:color={status === 'recording' ? 'var(--color-on-danger)' : 'var(--color-on-accent)'}
 >
 	{#if status === 'recording'}
 		<span
 			class="absolute inset-0 animate-ping rounded-full"
-			style:background-color="#dc2626"
+			style:background-color="var(--color-danger)"
 			style:opacity="0.5"
 		></span>
 	{/if}
@@ -75,17 +76,18 @@
 		fill="none"
 	>
 		{#if status === 'transcribing'}
-			<circle class="opacity-25" cx="12" cy="12" r="9" stroke="white" stroke-width="3"></circle>
-			<path class="opacity-90" fill="white" d="M12 3a9 9 0 0 1 9 9h-3a6 6 0 0 0-6-6V3z" />
+			<circle class="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3"
+			></circle>
+			<path class="opacity-90" fill="currentColor" d="M12 3a9 9 0 0 1 9 9h-3a6 6 0 0 0-6-6V3z" />
 		{:else if status === 'recording'}
-			<rect x="7" y="7" width="10" height="10" rx="2" fill="white" />
+			<rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" />
 		{:else}
 			<path
-				fill="white"
+				fill="currentColor"
 				d="M12 15a3.5 3.5 0 0 0 3.5-3.5v-5a3.5 3.5 0 0 0-7 0v5A3.5 3.5 0 0 0 12 15Z"
 			/>
 			<path
-				stroke="white"
+				stroke="currentColor"
 				stroke-width="1.8"
 				stroke-linecap="round"
 				fill="none"

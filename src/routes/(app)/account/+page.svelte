@@ -48,6 +48,8 @@
 	}
 </script>
 
+<svelte:head><title>Mi cuenta · Langua</title></svelte:head>
+
 <div class="mx-auto flex max-w-2xl flex-col gap-8 p-6">
 	<header>
 		<h1 class="text-xl font-semibold">Mi cuenta</h1>
@@ -113,14 +115,14 @@
 			</label>
 			<button
 				type="submit"
-				class="self-end rounded-md px-3 py-2 text-sm font-medium text-white"
+				class="self-end rounded-md px-3 py-2 text-sm font-medium text-on-accent"
 				style:background-color="var(--color-accent)"
 			>
 				Guardar
 			</button>
 		</form>
 		{#if messageFor('language')}
-			<p class="text-sm text-red-600">{messageFor('language')}</p>
+			<p class="text-sm text-danger">{messageFor('language')}</p>
 		{/if}
 		{#if form?.formId === 'language' && 'success' in form}
 			<p class="text-sm" style:color="var(--color-accent)">
@@ -184,14 +186,14 @@
 			{/if}
 			<button
 				type="submit"
-				class="self-end rounded-md px-3 py-2 text-sm font-medium text-white"
+				class="self-end rounded-md px-3 py-2 text-sm font-medium text-on-accent"
 				style:background-color="var(--color-accent)"
 			>
 				Guardar
 			</button>
 		</form>
 		{#if messageFor('voice')}
-			<p class="text-sm text-red-600">{messageFor('voice')}</p>
+			<p class="text-sm text-danger">{messageFor('voice')}</p>
 		{/if}
 		{#if data.user.targetLanguage && VOICE_SAMPLES[data.user.targetLanguage]}
 			<div class="flex items-center gap-3 text-sm">
@@ -267,7 +269,7 @@
 							<input type="hidden" name="id" value={token.id} />
 							<button
 								type="submit"
-								class="rounded-md border px-3 py-1.5 text-sm text-red-600"
+								class="rounded-md border px-3 py-1.5 text-sm text-danger"
 								style:border-color="var(--color-border)"
 							>
 								Revocar
@@ -302,11 +304,11 @@
 				/>
 			</label>
 			{#if messageFor('createToken')}
-				<p class="text-sm text-red-600">{messageFor('createToken')}</p>
+				<p class="text-sm text-danger">{messageFor('createToken')}</p>
 			{/if}
 			<button
 				type="submit"
-				class="self-start rounded-md px-3 py-2 text-sm font-medium text-white"
+				class="self-start rounded-md px-3 py-2 text-sm font-medium text-on-accent"
 				style:background-color="var(--color-accent)"
 			>
 				Crear token

@@ -3,6 +3,8 @@
 	import favicon from '$lib/assets/favicon.svg';
 </script>
 
+<svelte:head><title>Langua</title></svelte:head>
+
 <div
 	class="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 p-6 text-center"
 >
@@ -22,7 +24,7 @@
 
 	<a
 		href={resolve('/login')}
-		class="rounded-md px-5 py-2.5 text-sm font-medium text-white"
+		class="rounded-md px-5 py-2.5 text-sm font-medium text-on-accent"
 		style:background-color="var(--color-accent)"
 	>
 		Entrar

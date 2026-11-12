@@ -9,7 +9,11 @@
 	--color-ink: var(--langua-ink);
 	--color-ink-muted: var(--langua-ink-muted);
 	--color-border: var(--langua-border);
+	--color-on-accent: var(--langua-on-accent);
 	--color-danger: var(--langua-danger);
+	--color-on-danger: var(--langua-on-danger);
+	--color-warning: var(--langua-warning);
+	--color-success: var(--langua-success);
 }
 
 :root {
@@ -19,12 +23,23 @@
 	--langua-ink: #2a2420;
 	--langua-ink-muted: #6b6258;
 	--langua-border: #e2ddd4;
+	/* Texto/iconos sobre el acento y estados: dependen solo de claro/oscuro. */
+	--langua-on-accent: #ffffff;
 	--langua-danger: #b91c1c;
+	--langua-on-danger: #ffffff;
+	--langua-warning: #b45309;
+	--langua-success: #15803d;
+	color-scheme: light;
 }
 
-/* Estados: dependen solo de claro/oscuro, no de la paleta. */
+/* En oscuro el acento es claro: el texto encima tiene que ser oscuro. */
 :root.dark {
+	--langua-on-accent: #111111;
 	--langua-danger: #f87171;
+	--langua-on-danger: #111111;
+	--langua-warning: #fbbf24;
+	--langua-success: #4ade80;
+	color-scheme: dark;
 }
 
 :root.dark {
@@ -98,7 +113,11 @@
 	--langua-ink: #000000;
 	--langua-ink-muted: #000000;
 	--langua-border: #000000;
+	--langua-on-accent: #ffffff;
 	--langua-danger: #a00000;
+	--langua-on-danger: #ffffff;
+	--langua-warning: #7a4100;
+	--langua-success: #006400;
 }
 
 :root.high-contrast.dark {
@@ -108,7 +127,11 @@
 	--langua-ink: #ffffff;
 	--langua-ink-muted: #ffffff;
 	--langua-border: #ffffff;
+	--langua-on-accent: #000000;
 	--langua-danger: #ff8080;
+	--langua-on-danger: #000000;
+	--langua-warning: #ffd000;
+	--langua-success: #00ff66;
 }
 
 body {

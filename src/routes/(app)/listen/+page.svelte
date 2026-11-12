@@ -24,7 +24,7 @@
 	function scoreColor(score: number) {
 		if (score >= 85) return 'var(--color-accent)';
 		if (score >= 60) return 'var(--color-ink)';
-		return '#dc2626';
+		return 'var(--color-danger)';
 	}
 
 	let allAnswered = $derived(
@@ -33,6 +33,8 @@
 			selected.every((s) => s >= 0)
 	);
 </script>
+
+<svelte:head><title>Escuchar · Langua</title></svelte:head>
 
 <div class="mx-auto flex max-w-2xl flex-col gap-6 p-6">
 	<header>
@@ -96,7 +98,7 @@
 			<button
 				type="submit"
 				disabled={generating || submitting}
-				class="rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+				class="rounded-md px-3 py-2 text-sm font-medium text-on-accent disabled:opacity-50"
 				style:background-color="var(--color-accent)"
 			>
 				{generating ? 'Generando...' : exercise ? 'Otro ejercicio' : 'Nuevo ejercicio'}
@@ -156,7 +158,7 @@
 				<input type="hidden" name="targetLanguage" value={exercise.language} />
 
 				{#each exercise.questions as question, qi (qi)}
-					<fieldset class="flex flex-col gap-1.5">
+					<fieldset class="flex flex-col gap-1.5" lang={exercise.language}>
 						<legend class="text-sm font-medium">{question.question}</legend>
 						{#each question.options as option, oi (oi)}
 							<label class="flex items-center gap-2 text-sm">
@@ -166,7 +168,7 @@
 									{#if oi === result.graded[qi].correctIndex}
 										<span style:color="var(--color-accent)">✓</span>
 									{:else if oi === result.graded[qi].selectedIndex}
-										<span style:color="#dc2626">✗</span>
+										<span style:color="var(--color-danger)">✗</span>
 									{/if}
 								{/if}
 							</label>
@@ -178,7 +180,7 @@
 					<button
 						type="submit"
 						disabled={!allAnswered || submitting}
-						class="self-start rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+						class="self-start rounded-md px-3 py-2 text-sm font-medium text-on-accent disabled:opacity-50"
 						style:background-color="var(--color-accent)"
 					>
 						{submitting ? 'Corrigiendo...' : 'Comprobar respuestas'}
@@ -191,7 +193,9 @@
 					<p>
 						Puntuación: <strong style:color={scoreColor(result.score)}>{result.score}/100</strong>
 					</p>
-					<p class="mt-2" style:color="var(--color-ink-muted)">Transcripción: {exercise.passage}</p>
+					<p class="mt-2" style:color="var(--color-ink-muted)">
+						Transcripción: <span lang={exercise.language}>{exercise.passage}</span>
+					</p>
 				</div>
 			{/if}
 		{:else}

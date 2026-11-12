@@ -114,6 +114,8 @@
 	});
 </script>
 
+<svelte:head><title>Libro de estudio · Langua</title></svelte:head>
+
 <div class="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
 	<h1 class="text-lg font-semibold">Libro de estudio</h1>
 
@@ -165,7 +167,7 @@
 									style:border-color="var(--color-border)"
 								>
 									<div class="flex flex-wrap items-center gap-2">
-										<span class="font-medium">{item.word}</span>
+										<span class="font-medium" lang={item.targetLanguage}>{item.word}</span>
 										<SpeakButton text={item.word} language={item.targetLanguage} style="word" />
 										<span style:color="var(--color-ink-muted)">— {item.translation}</span>
 									</div>
@@ -191,7 +193,11 @@
 									{/if}
 
 									<div class="flex items-center gap-2">
-										<p class="text-xs italic" style:color="var(--color-ink-muted)">
+										<p
+											class="text-xs italic"
+											lang={item.targetLanguage}
+											style:color="var(--color-ink-muted)"
+										>
 											{item.exampleSentence}
 										</p>
 										<SpeakButton text={item.exampleSentence} language={item.targetLanguage} />
@@ -200,7 +206,7 @@
 									{#each extraByItemId[item.id] ?? [] as example, i (i)}
 										<div class="flex items-center gap-2">
 											<p class="text-xs italic" style:color="var(--color-ink-muted)">
-												{example.sentence}
+												<span lang={item.targetLanguage}>{example.sentence}</span>
 												<span style:color="var(--color-ink-muted)">— {example.translation}</span>
 											</p>
 											<SpeakButton text={example.sentence} language={item.targetLanguage} />
@@ -238,7 +244,8 @@
 										>
 									{:else if state === 'error'}
 										<div class="flex items-center gap-2">
-											<span class="text-xs" style:color="#f87171">No se pudo generar la frase.</span
+											<span class="text-xs" style:color="var(--color-danger)"
+												>No se pudo generar la frase.</span
 											>
 											<button
 												type="button"
@@ -252,14 +259,14 @@
 									{:else}
 										<div class="flex flex-wrap items-center gap-2">
 											<p class="text-xs italic">
-												{state.sentence}
+												<span lang={item.targetLanguage}>{state.sentence}</span>
 												<span style:color="var(--color-ink-muted)">— {state.translation}</span>
 											</p>
 											<SpeakButton text={state.sentence} language={item.targetLanguage} />
 											<button
 												type="button"
 												onclick={() => saveSentence(item.id)}
-												class="rounded-md px-2.5 py-1 text-xs font-medium text-white"
+												class="rounded-md px-2.5 py-1 text-xs font-medium text-on-accent"
 												style:background-color="var(--color-accent)"
 											>
 												Guardar
