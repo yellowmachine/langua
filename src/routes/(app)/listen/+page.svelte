@@ -7,8 +7,9 @@
 	import { LISTENING_EXERCISE_TYPES } from '$lib/listeningExerciseTypes';
 	import type { PageData } from './$types';
 
-	type Question = { question: string; options: string[]; correctIndex: number };
-	type GradedQuestion = Question & { selectedIndex: number };
+	// The correct answers only come back once the exercise has been graded.
+	type Question = { question: string; options: string[] };
+	type GradedQuestion = Question & { correctIndex: number; selectedIndex: number };
 
 	let { data }: { data: PageData } = $props();
 
@@ -16,7 +17,12 @@
 	let level = $state<(typeof LEVELS)[number]['code']>('beginner');
 	let exerciseType = $state('');
 
-	let exercise = $state<{ passage: string; questions: Question[]; language: string } | null>(null);
+	let exercise = $state<{
+		exerciseId: string;
+		passage: string;
+		questions: Question[];
+		language: string;
+	} | null>(null);
 	let selected = $state<number[]>([]);
 	let generating = $state(false);
 	let submitting = $state(false);
@@ -59,7 +65,11 @@
 					generating = false;
 					if (actionResult.type === 'success' && actionResult.data) {
 						exercise = {
-							...(actionResult.data as { passage: string; questions: Question[] }),
+							...(actionResult.data as {
+								exerciseId: string;
+								passage: string;
+								questions: Question[];
+							}),
 							language: targetLanguage
 						};
 						selected = exercise.questions.map(() => -1);
@@ -168,10 +178,8 @@
 				}}
 				class="flex flex-col gap-4"
 			>
-				<input type="hidden" name="passage" value={exercise.passage} />
-				<input type="hidden" name="questions" value={JSON.stringify(exercise.questions)} />
+				<input type="hidden" name="exerciseId" value={exercise.exerciseId} />
 				<input type="hidden" name="answers" value={JSON.stringify(selected)} />
-				<input type="hidden" name="targetLanguage" value={exercise.language} />
 
 				{#each exercise.questions as question, qi (qi)}
 					<fieldset class="flex flex-col gap-1.5" lang={exercise.language}>

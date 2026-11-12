@@ -232,6 +232,33 @@ export const listeningAttemptRelations = relations(listeningAttempt, ({ one }) =
 	})
 }));
 
+// An Escuchar exercise handed out but not answered yet. The answers stay
+// here, on the server: the browser only gets the passage and the options,
+// and sends back the exerciseId with its choices to be graded (the row is
+// then replaced by a listening_attempt).
+export const listeningExercise = pgTable(
+	'listening_exercise',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		targetLanguage: text('target_language').notNull(),
+		passage: text('passage').notNull(),
+		questions: jsonb('questions')
+			.$type<{ question: string; options: string[]; correctIndex: number }[]>()
+			.notNull(),
+		createdAt: timestamp('created_at').defaultNow().notNull()
+	},
+	(t) => [
+		index('listening_exercise_user_idx').on(t.userId),
+		pgPolicy('listening_exercise_access', {
+			for: 'all',
+			using: sql`${t.userId} = current_setting('app.current_user_id', true)`
+		})
+	]
+).enableRLS();
+
 // Per-user API tokens for other apps (e.g. JellyCartoon) to push content
 // in. Only the SHA-256 of the token is stored. Two policies: the usual
 // per-user one, for managing them from /account, and a lookup-by-hash one

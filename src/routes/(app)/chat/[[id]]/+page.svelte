@@ -736,6 +736,7 @@
 					<input
 						bind:value={input}
 						aria-label="Mensaje para el tutor"
+						maxlength={2000}
 						lang={data.activeConversation?.targetLanguage}
 						type="text"
 						placeholder="Escribe o graba un mensaje..."

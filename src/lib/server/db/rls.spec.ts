@@ -71,6 +71,11 @@ describe.skipIf(!canRun)('row-level security', () => {
 			{ id: 'listen-a', userId: A, ...attempt },
 			{ id: 'listen-b', userId: B, ...attempt }
 		]);
+		const exercise = { targetLanguage: 'en', passage: 'p', questions: [] };
+		await owner.insert(schema.listeningExercise).values([
+			{ id: 'exercise-a', userId: A, ...exercise },
+			{ id: 'exercise-b', userId: B, ...exercise }
+		]);
 		const clip = {
 			source: 'jellycartoon',
 			kind: 'episode' as const,
@@ -105,6 +110,7 @@ describe.skipIf(!canRun)('row-level security', () => {
 		['chat_message', schema.chatMessage, 'msg-a'],
 		['vocab_item', schema.vocabItem, 'vocab-a'],
 		['listening_attempt', schema.listeningAttempt, 'listen-a'],
+		['listening_exercise', schema.listeningExercise, 'exercise-a'],
 		['clip', schema.clip, 'clip-a'],
 		['integration_token', schema.integrationToken, 'token-a']
 	] as const;

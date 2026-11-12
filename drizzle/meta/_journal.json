@@ -120,6 +120,13 @@
       "when": 1793372848007,
       "tag": "0016_user_voice",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794492140358,
+      "tag": "0017_listening_exercise",
+      "breakpoints": true
     }
   ]
 }
