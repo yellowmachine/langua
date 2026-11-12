@@ -22,19 +22,9 @@ name: langua-prod
 # its container port (3000, see PORT below). Point the proxy's domain at
 # service `app`, port 3000.
 #
-# Ollama (local LLM fallback for chat) is gated behind the `local-ai` Compose
-# profile — it's the one service here heavy enough (2-4GB+ RAM just to load
-# a small model) to matter on a modest VPS. STT stays always-on: it's
-# CPU-only and lightweight (faster-whisper-small) and has no cloud fallback
-# implemented yet. TTS has no service here: it goes through Seilide's AI
-# endpoint, like the chat. Add `--profile local-ai` to the `up` command (or
-# set COMPOSE_PROFILES=local-ai in .env.prod) to run Ollama too; without it,
-# configure an OpenRouter key in Settings after first deploy so chat has a
-# provider to talk to.
-#
-# On a box with a dedicated AMD GPU, layer docker-compose.prod.amd.yml on
-# top to run Ollama on ROCm instead of the CPU — see that file for usage
-# (still needs the local-ai profile enabled).
+# Chat, generation and TTS go through Seilide's AI endpoint (see README →
+# Seilide), so there's no model to run here. STT is the one local AI
+# service: CPU-only and lightweight (faster-whisper-small, int8).
 
 services:
   postgres:
@@ -136,6 +126,9 @@ services:
       STT_BASE_URL: http://stt:8000
       STT_MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
       AUDIO_CACHE_DIR: /data/audio
+      AUDIO_CACHE_MAX_MB: ${AUDIO_CACHE_MAX_MB:-1024}
+      # Days of practice (streaks) are counted on the family's clock.
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-Europe/Madrid}
       # Audio of clips sent in by integrations (JellyCartoon). Unlike the
       # TTS cache this isn't regenerable — back it up along with pgdata.
       CLIPS_DIR: /data/clips

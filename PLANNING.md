@@ -2,79 +2,68 @@
 
 ## 1. Concepto
 
-App de idiomas **multiusuario y self-hosted**, pensada para que la despliegue una
-familia en su propio servidor. Cada miembro tiene su propia cuenta, su propio
-idioma objetivo y su propio progreso. Una instalación = una familia (no hay
-multi-tenant: el límite de "familia" lo pone el propio despliegue, no una fila
-en la base de datos).
+App de idiomas **multiusuario y self-hosted** para las familias de Seilide
+(la nube de JellyCartoon). Cada miembro entra con su cuenta de Seilide y
+tiene su propio idioma nativo, idioma objetivo, voz y progreso. Una
+instalación sirve a todas las familias; los datos de cada persona quedan
+aislados por Row-Level Security (§5).
 
-Tres módulos funcionales sobre una base común de cuentas:
+Módulos:
 
-- **Chat con IA** — conversación de práctica en el idioma objetivo.
-- **Escuchar** — comprensión auditiva (audio + preguntas).
-- **Hablar** — el usuario graba, se transcribe (STT) y se compara/da feedback
-  contra una frase objetivo.
+- **Chat con IA** — conversación de práctica por idioma, nivel y tema, con
+  corrección de lo que escribes, traducción, sugerencias de respuesta, panel
+  de palabra y extracción de vocabulario.
+- **Clips** — audios que manda JellyCartoon (`/api/v1/clips`), transcritos en
+  local, con texto sincronizado, bucle de frase y «escuchar primero».
+- **Escuchar** — pasaje generado + 3 preguntas de comprensión, con nota.
+- **Hablar** — grabas, se transcribe (STT) y se corrige el texto.
+- **Corregir** y **Traducir** — texto libre.
+- **Libro de estudio** — el vocabulario guardado, con ejemplos generados.
+- **Progreso** — racha, actividad de 14 días y totales.
 
-Regla transversal: **toda capacidad de IA (chat, STT, TTS) es local por
-defecto** (corre en un contenedor propio, sin coste ni dependencia externa) y
-**se vuelve cloud automáticamente si se configura una API key** en Ajustes.
-Esto es un patrón de arquitectura, no solo una feature del chat.
+## 2. IA: Seilide para el texto y la voz, STT en local
 
-## 2. Patrón "local por defecto, cloud si hay key"
+- **Chat y generación** (`src/lib/server/ai/*`): todas las llamadas van al
+  endpoint OpenAI-compatible de Seilide (`${SEILIDE_URL}/api/ia/v1`) con el
+  token de acceso de la propia persona. Seilide llama a OpenRouter con la key
+  de su familia y apunta el gasto; Langua nunca ve una key de OpenRouter.
+- **TTS**: el endpoint `audio/speech` de Seilide (modelo
+  `google/gemini-3.8-flash-tts`), con caché en disco compartida por hash de
+  (modelo, voz, instrucciones, texto), limitada por `AUDIO_CACHE_MAX_MB`.
+  Piper se quitó (oct. 2026): con las 6 voces ocupaba ~950 MiB de RAM y sonaba
+  peor.
+- **STT**: faster-whisper-server en local (servicio `stt`), para el dictado y
+  para transcribir los clips.
 
-OpenRouter y Ollama exponen ambos una API compatible con OpenAI
-(`/v1/chat/completions`), así que el chat usa un único cliente cuyo `baseURL`
-y `apiKey` cambian según haya o no key guardada:
-
-```
-ai/chat.ts
-  si settings.openrouterApiKey → baseURL: openrouter.ai/api/v1, key: la guardada
-  si no                        → baseURL: http://ollama:11434/v1, key: "ollama" (dummy)
-```
-
-Para voz:
-
-- STT local corre detrás de un servidor con **API compatible OpenAI**
-  (faster-whisper-server).
-- TTS va a la nube, como el chat: el endpoint `audio/speech` de Seilide
-  (OpenRouter, con la key de la familia; modelo `google/gemini-3.8-flash-tts`).
-  Piper se quitó (oct. 2026): con las 6 voces cargadas ocupaba ~950 MiB de RAM
-  en el VPS y sonaba bastante peor.
-
-Las API keys se guardan **cifradas en la base de datos** (no en `.env`), para
-que cualquier adulto de la familia pueda configurarlas desde Ajustes sin tocar
-el servidor.
+Ya no hay Ollama ni claves guardadas en Ajustes: la idea inicial de «local
+por defecto, cloud si hay key» se sustituyó por Seilide.
 
 ## 3. Stack y servicios (docker compose)
 
-Ya existe el scaffold (`sv create`): SvelteKit + Bun + Tailwind 4 + Drizzle +
-Vitest + Playwright + mdsvex. Se añade:
+SvelteKit 2 + Svelte 5 + Bun + Tailwind 4 + Drizzle + better-auth (OIDC con
+Seilide) + Vitest + Playwright.
 
-| Servicio   | Imagen/base                               | Rol                                                               |
-| ---------- | ----------------------------------------- | ----------------------------------------------------------------- |
-| `app`      | build propio (Bun)                        | SvelteKit                                                         |
-| `postgres` | `postgres:16`                             | datos                                                             |
-| `ollama`   | `ollama/ollama`                           | LLM local (fallback chat), modelo pequeño multilingüe por defecto |
-| `stt`      | faster-whisper-server (API OpenAI-compat) | transcripción local                                               |
+| Servicio   | Imagen/base                               | Rol                                |
+| ---------- | ----------------------------------------- | ---------------------------------- |
+| `app`      | imagen propia (GHCR)                      | SvelteKit                          |
+| `postgres` | `postgres:16`                             | datos                              |
+| `stt`      | faster-whisper-server (API OpenAI-compat) | transcripción local                |
+| `migrate`  | la misma imagen que `app`, una vez        | migraciones como superusuario (§5) |
 
-Redis/cola de trabajos queda **fuera del MVP**: si la síntesis local resulta
-lenta, se añade después para no bloquear la UI. Tampoco hace falta MinIO/S3 a
-esta escala — el audio generado y las grabaciones se cachean en un volumen
-local (`./data/audio`), indexado por hash de `(texto, voz, idioma)`.
+El audio generado se cachea en un volumen (`/data/audio`); el de los clips
+(`/data/clips`) no se puede regenerar y hay que respaldarlo con `pgdata`.
 
 ## 4. Modelo de datos (Drizzle, resumen)
 
-- `users` — gestionados con **better-auth** + campos propios: `role`
-  (admin/miembro), `nativeLanguage`, `targetLanguage`, tema. Sin `familyId`:
-  no hace falta, solo hay una familia por instancia. Los perfiles infantiles
-  no necesitan email real: el admin los crea directamente desde la app.
-- `app_settings` — fila única (o tabla clave-valor) a nivel de instancia:
-  `openrouterApiKeyEnc`, `voiceApiKeyEnc`, modelo preferido.
-- `chat_conversations` / `chat_messages`
-- `listening_exercises` / `listening_attempts`
-- `speaking_prompts` / `speaking_attempts` (transcript, score, feedback)
-- `progress_daily` — minutos practicados, racha, xp por usuario/día
-- (fase posterior) `vocab_items` para repaso espaciado (SRS)
+- `user`, `session`, `account`, `verification` — better-auth, más los campos
+  propios del perfil: `nativeLanguage`, `targetLanguage`, tema/oscuro/alto
+  contraste, `voice`, `accent` (solo los cambian las acciones de Mi cuenta).
+- `chat_conversation` / `chat_message` (con análisis y traducción).
+- `listening_exercise` (pendiente, con las respuestas solo en el servidor) /
+  `listening_attempt` (corregido, con nota).
+- `clip` — audio, transcripción por frases y subtítulos traducidos.
+- `vocab_item` — libro de estudio, con ejemplos extra y etiquetas.
+- `integration_token` — tokens para la API (`/api/v1`), guardados como hash.
 
 ## 5. Seguridad de datos: Row-Level Security
 
@@ -106,30 +95,35 @@ la autenticación funcione, y no pasan por `withRLS`.
 
 ## 6. UI/UX — temas y accesibilidad
 
-Patrón inspirado en Scholio: **selector de paletas con swatch claro/oscuro
-por tema** (`data-theme` + clase `dark`, persistido en `localStorage` y
-sincronizado a la cuenta) más un **toggle de alto contraste** independiente
-del tema, pensado para accesibilidad WCAG. Cada miembro elige su propio tema
-— se guarda por usuario.
+Selector de paletas con versión clara y oscura (`data-theme` + clase `dark`,
+en `localStorage` y en la cuenta) y un **alto contraste** independiente. Los
+colores son tokens en `src/routes/layout.css` (`accent`, `on-accent`,
+`danger`, `warning`, `success`…) y los controles comunes están en
+`src/lib/components/ui` (`Button`, `Chip`, `Switch`), así que cada tema y el
+alto contraste se aplican en toda la app.
 
-## 7. Fases de construcción
+Accesibilidad (WCAG 2.2 AA) — convenciones a mantener:
 
-0. **Fundaciones** — schema `users` + `app_settings`, better-auth + Drizzle
-   adapter, layout base, selector de tema + alto contraste, `postgres` en
-   compose.
-1. **Multiusuario familiar** — alta del admin, gestión de miembros, idioma
-   objetivo por usuario.
-2. **Chat IA (texto)** — abstracción de provider, servicio `ollama` en
-   compose, pantalla de chat, ajuste de API key de OpenRouter en Settings.
-3. **Voz de salida (TTS)** — TTS cloud vía Seilide, botón "escuchar" en mensajes del
-   chat, caché de audio.
-4. **Voz de entrada (STT) + módulo Hablar** — servicio `stt`, grabación en el
-   navegador, comparación con frase objetivo, feedback.
-5. **Módulo Escuchar** — audios + preguntas de comprensión, registro de
-   intentos.
-6. **Progreso** — dashboard por miembro, rachas, historial.
-7. _(futuro)_ vocabulario con repetición espaciada, backups automáticos,
-   proxy con TLS para acceso remoto seguro.
+- Todo texto en el idioma que se aprende lleva su `lang`.
+- Cada ruta tiene `<title>`; hay enlace «Saltar al contenido».
+- Resultados y errores se anuncian con `announcer` (`src/lib/announcer.svelte.ts`).
+- Los paneles laterales en móvil son diálogos con trampa de foco (`drawer`).
+- Las palabras clicables son una sola parada de Tab por mensaje (`rovingFocus`).
+- Nada se distingue solo por el color; se respeta `prefers-reduced-motion`.
+
+## 7. Estado y siguientes pasos
+
+Hecho: cuentas con Seilide, chat, TTS, STT + Hablar (sin frase objetivo),
+Escuchar, Clips, Corregir, Traducir, libro de estudio, progreso básico, RLS
+con tests contra Postgres y un e2e del chat (`bun run test`).
+
+Pendiente:
+
+- **Hablar** con frase objetivo, comparación y puntuación guardada.
+- **Progreso** que cuente también clips, vocabulario, corregir y hablar.
+- **Vocabulario** con repetición espaciada; poder borrar y editar palabras.
+- Revisar intentos antiguos de Escuchar.
+- Backups automáticos de `pgdata` y `clips_data`.
 
 ## 8. Despliegue en producción
 
@@ -143,14 +137,14 @@ puertos publicados al host). El despliegue real usa dos piezas nuevas:
   paquete que el servidor importe en runtime (`svelte`, `@sveltejs/kit`,
   `drizzle-orm`, `postgres`...) tiene que estar en `dependencies`, no en
   `devDependencies`, o el contenedor de producción revienta al arrancar.
-- `docker-compose.prod.yml` — stack completo (`postgres`, `ollama`, `stt`, `migrate` uno-shot, `app`) en una red interna; solo el puerto de
+- `docker-compose.prod.yml` — stack completo (`postgres`, `stt`, `migrate` uno-shot, `app`) en una red interna; solo el puerto de
   `app` llega al host. Nombre de proyecto propio (`langua-prod`) y volúmenes
   separados de `compose.yaml`, para no pisar los datos de desarrollo.
   Variables en `.env.prod` (plantilla en `.env.prod.example`, sin defaults
   para secretos — a diferencia de `.env.example`).
 
 Detalle importante de SvelteKit: los secretos (`DATABASE_URL`,
-`BETTER_AUTH_SECRET`, `ENCRYPTION_KEY`...) usan `$env/dynamic/private`, no
+`BETTER_AUTH_SECRET`, `SEILIDE_CLIENT_SECRET`...) usan `$env/dynamic/private`, no
 `$env/static/private`. El static se **inlinea en el bundle durante el
 build**, lo que forzaría a hornear los secretos de cada familia dentro de la
 imagen (o a reconstruirla por despliegue). Con dynamic se leen de
