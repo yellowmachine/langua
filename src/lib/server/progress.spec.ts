@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('$env/dynamic/private', () => ({ env: {} }));
 
-const { computeStreak, localDateKey, recentDateKeys } = await import('./progress');
+const { computeStreak, isTimeZone, localDateKey, recentDateKeys } = await import('./progress');
 
 // 00:30 on 10 March in Madrid is still 9 March in UTC.
 const justAfterMidnightInMadrid = new Date('2026-03-09T23:30:00Z');
@@ -44,5 +44,14 @@ describe('recentDateKeys', () => {
 			'2026-03-09',
 			'2026-03-10'
 		]);
+	});
+});
+
+describe('isTimeZone', () => {
+	it('accepts IANA zones and nothing that could break out of SQL', () => {
+		expect(isTimeZone('Europe/Madrid')).toBe(true);
+		expect(isTimeZone('America/Argentina/Buenos_Aires')).toBe(true);
+		expect(isTimeZone('Mars/Olympus')).toBe(false);
+		expect(isTimeZone("UTC'; drop table user; --")).toBe(false);
 	});
 });

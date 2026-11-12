@@ -1,11 +1,34 @@
+import { sql } from 'drizzle-orm';
 import { env } from '$env/dynamic/private';
+
+/** An IANA zone Intl knows, written only with the characters zone names use. */
+export function isTimeZone(zone: string): boolean {
+	if (!/^[A-Za-z0-9_+\-/]+$/.test(zone)) return false;
+	try {
+		new Intl.DateTimeFormat('en', { timeZone: zone });
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 /**
  * The family's time zone: a day of practice is a day on their clock, not
  * UTC's (otherwise what's done just after midnight in Spain counts for the
  * day before).
  */
-export const TIME_ZONE = env.APP_TIME_ZONE || 'Europe/Madrid';
+export const TIME_ZONE =
+	env.APP_TIME_ZONE && isTimeZone(env.APP_TIME_ZONE) ? env.APP_TIME_ZONE : 'Europe/Madrid';
+
+/**
+ * The local date of a UTC `timestamp` column, as SQL. The zone goes in as
+ * a literal (it's validated above), not a parameter: the same expression
+ * in SELECT and GROUP BY would otherwise get two different parameters and
+ * Postgres wouldn't see them as one.
+ */
+export function localDay(column: unknown) {
+	return sql<string>`(${column} at time zone 'UTC' at time zone ${sql.raw(`'${TIME_ZONE}'`)})::date`;
+}
 
 /** `YYYY-MM-DD` of `date` in `timeZone`. */
 export function localDateKey(date: Date, timeZone = TIME_ZONE): string {
