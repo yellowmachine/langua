@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { rovingFocus } from '$lib/rovingFocus';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -92,7 +93,9 @@
 	// Keeps the phrase being played in view as the audio advances.
 	function scrollIntoViewWhen(active: boolean) {
 		return (element: HTMLElement) => {
-			if (active) element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+			if (!active) return;
+			const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			element.scrollIntoView({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
 		};
 	}
 
@@ -440,12 +443,17 @@
 			{formatTimestamp(start)}
 		</button>
 		<span class="flex min-w-0 flex-col">
-			<span class="whitespace-pre-line" lang={data.clip.language ?? undefined}>
+			<span
+				class="whitespace-pre-line"
+				lang={data.clip.language ?? undefined}
+				{@attach rovingFocus}
+			>
 				{#if data.clip.language}
 					{#each splitIntoWords(text) as token, t (t)}
 						{#if token.clickable}
 							<button
 								type="button"
+								data-word
 								onclick={() => lookupWord(cueIndex, token.text)}
 								class="hover:underline"
 								style:font="inherit"

@@ -11,6 +11,9 @@
 	type Status = 'idle' | 'loading' | 'playing';
 
 	let status = $state<Status>('idle');
+	// Which phrase this button reads, for screen readers (there can be dozens
+	// of them on a page).
+	let phrase = $derived(text.length > 40 ? `${text.slice(0, 40)}…` : text);
 	// Which of the two buttons started what is loading or playing.
 	let slow = $state(false);
 	let audio: HTMLAudioElement | undefined;
@@ -72,7 +75,8 @@
 	<button
 		type="button"
 		onclick={() => toggle(false)}
-		aria-label={normalStatus === 'playing' ? 'Detener audio' : 'Escuchar'}
+		aria-label={normalStatus === 'playing' ? 'Detener audio' : `Escuchar «${phrase}»`}
+		aria-busy={normalStatus === 'loading'}
 		class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors"
 		style:border-color={normalStatus === 'playing' ? 'var(--color-accent)' : 'var(--color-border)'}
 		style:background-color={normalStatus === 'playing' ? 'var(--color-accent)' : 'transparent'}
@@ -108,7 +112,8 @@
 	<button
 		type="button"
 		onclick={() => toggle(true)}
-		aria-label={slowStatus === 'playing' ? 'Detener audio' : 'Repetir despacio'}
+		aria-label={slowStatus === 'playing' ? 'Detener audio' : `Repetir despacio «${phrase}»`}
+		aria-busy={slowStatus === 'loading'}
 		title="Repetir despacio"
 		class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors"
 		style:border-color={slowStatus === 'playing' ? 'var(--color-accent)' : 'var(--color-border)'}

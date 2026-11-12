@@ -5,8 +5,8 @@
 </script>
 
 <div class="flex min-h-screen flex-col">
-	<div class="flex-1">
+	<main class="flex-1">
 		{@render children()}
-	</div>
+	</main>
 	<Footer />
 </div>

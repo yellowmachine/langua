@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Chip from '$lib/components/ui/Chip.svelte';
 	import { announcer } from '$lib/announcer.svelte';
@@ -15,7 +16,8 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let targetLanguage = $state(data.user.targetLanguage ?? LANGUAGES[0].code);
+	// The account's languages are only the starting choice: the selects own it.
+	let targetLanguage = $state(untrack(() => data.user.targetLanguage ?? LANGUAGES[0].code));
 	let level = $state<(typeof LEVELS)[number]['code']>('beginner');
 	let exerciseType = $state('');
 

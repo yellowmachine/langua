@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { announcer } from '$lib/announcer.svelte';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
@@ -7,8 +8,9 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let sourceLanguage = $state(data.user.nativeLanguage ?? LANGUAGES[0].code);
-	let targetLanguage = $state(data.user.targetLanguage ?? LANGUAGES[1].code);
+	// The account's languages are only the starting choice: the selects own it.
+	let sourceLanguage = $state(untrack(() => data.user.nativeLanguage ?? LANGUAGES[0].code));
+	let targetLanguage = $state(untrack(() => data.user.targetLanguage ?? LANGUAGES[1].code));
 	let text = $state('');
 	let result: 'idle' | 'loading' | string | 'error' = $state('idle');
 	// Language the shown translation is in (the selects may change afterwards).

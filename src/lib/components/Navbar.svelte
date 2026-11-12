@@ -57,7 +57,7 @@
 			Langua
 		</a>
 
-		<nav class="hidden flex-1 items-center gap-1 sm:flex">
+		<nav aria-label="Secciones" class="hidden flex-1 items-center gap-1 sm:flex">
 			{#each links as link (link.href)}
 				<a
 					href={link.href}
@@ -116,6 +116,7 @@
 
 	{#if menuOpen}
 		<nav
+			aria-label="Secciones"
 			id="mobile-menu"
 			class="flex flex-col gap-1 border-t px-6 py-3 text-sm sm:hidden"
 			style:border-color="var(--color-border)"

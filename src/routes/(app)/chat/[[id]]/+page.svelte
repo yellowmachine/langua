@@ -2,6 +2,12 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Chip from '$lib/components/ui/Chip.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import BookOpen from '@lucide/svelte/icons/book-open';
+	import Languages from '@lucide/svelte/icons/languages';
+	import MessagesSquare from '@lucide/svelte/icons/messages-square';
+	import Plus from '@lucide/svelte/icons/plus';
+	import SendHorizontal from '@lucide/svelte/icons/send-horizontal';
+	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import { announcer } from '$lib/announcer.svelte';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
@@ -14,6 +20,7 @@
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import { fetchSpeechAudio } from '$lib/audio';
 	import { drawer } from '$lib/drawer';
+	import { rovingFocus } from '$lib/rovingFocus';
 	import { LANGUAGES } from '$lib/languages';
 	import { LEVELS } from '$lib/levels';
 	import { CONVERSATION_TEMPLATES } from '$lib/conversationTemplates';
@@ -55,6 +62,8 @@
 	}
 
 	let conversationsOpen = $state(false);
+	// Phones: the chat options are folded away behind a button.
+	let settingsOpen = $state(false);
 	let wordPanelOpen = $state(false);
 
 	// One Chat per conversation: rebuilt only when the conversation changes,
@@ -396,91 +405,63 @@
 <svelte:head><title>{`${data.activeConversation?.title ?? 'Chat'} · Langua`}</title></svelte:head>
 
 <div class="flex h-full flex-col">
-	<div
-		class="mx-auto flex w-full max-w-6xl shrink-0 items-center justify-between gap-4 border-b px-6 py-3"
-		style:border-color="var(--color-border)"
-	>
+	<h1 class="sr-only">{data.activeConversation?.title ?? 'Chat'}</h1>
+	<div class="mx-auto w-full max-w-6xl shrink-0 border-b border-border px-3 py-2 sm:px-6 sm:py-3">
 		<div class="flex items-center gap-2">
+			<button
+				type="button"
+				onclick={() => (conversationsOpen = true)}
+				aria-label="Ver conversaciones"
+				class="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border sm:hidden"
+			>
+				<MessagesSquare class="h-5 w-5" aria-hidden="true" />
+			</button>
+
 			<Button
 				onclick={() => {
 					newTitle = '';
 					newDialog?.showModal();
 				}}
 			>
-				Nueva conversación
+				<Plus class="h-4 w-4" aria-hidden="true" />
+				<span class="sm:hidden">Nueva</span>
+				<span class="hidden sm:inline">Nueva conversación</span>
 			</Button>
 
-			<button
-				type="button"
-				onclick={() => (conversationsOpen = true)}
-				aria-label="Ver conversaciones"
-				class="rounded-md border p-2 sm:hidden"
-				style:border-color="var(--color-border)"
-			>
-				<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
-					<path
-						stroke="currentColor"
-						stroke-width="1.8"
-						stroke-linecap="round"
-						d="M4 6h16M4 12h16M4 18h10"
-					/>
-				</svg>
-			</button>
-		</div>
-
-		{#if data.activeId}
-			<div class="flex flex-wrap items-center gap-4">
-				<div class="flex items-center gap-2 text-sm">
-					<Button
-						variant="secondary"
-						onclick={extractVocabulary}
-						disabled={vocabExtraction === 'loading'}
+			{#if data.activeId}
+				<div class="ml-auto flex items-center gap-2 sm:hidden">
+					<button
+						type="button"
+						onclick={() => (settingsOpen = !settingsOpen)}
+						aria-expanded={settingsOpen}
+						aria-controls="chat-settings"
+						aria-label="Opciones del chat"
+						class="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border sm:hidden"
 					>
-						Extraer vocabulario
-					</Button>
-					{#if vocabExtraction === 'loading'}
-						<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
-					{:else if vocabExtraction === 'error'}
-						<span class="text-xs" style:color="var(--color-danger)"
-							>No se pudo extraer el vocabulario.</span
-						>
-					{:else if vocabExtraction !== 'idle'}
-						<span class="text-xs" style:color="var(--color-ink-muted)">
-							{vocabExtraction.added > 0
-								? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
-								: 'Sin palabras nuevas'} —
-							<a href={resolve('/study')} class="underline" style:color="var(--color-accent)"
-								>ver libro de estudio</a
-							>
-						</span>
-					{/if}
+						<SlidersHorizontal class="h-5 w-5" aria-hidden="true" />
+					</button>
+					<button
+						type="button"
+						onclick={() => (wordPanelOpen = true)}
+						aria-label="Ver panel de palabra"
+						class="inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border border-border sm:hidden"
+					>
+						<BookOpen class="h-5 w-5" aria-hidden="true" />
+					</button>
 				</div>
 
-				<Switch checked={autoPlay} label="Leer respuestas en voz alta" onchange={toggleAutoPlay} />
-
-				<Switch
-					checked={quickReplies}
-					label="Sugerencias de respuesta"
-					onchange={toggleQuickReplies}
-				/>
-
-				<button
-					type="button"
-					onclick={() => (wordPanelOpen = true)}
-					aria-label="Ver panel de palabra"
-					class="rounded-md border p-2 sm:hidden"
-					style:border-color="var(--color-border)"
-				>
-					<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" style:color="var(--color-ink)">
-						<path
-							stroke="currentColor"
-							stroke-width="1.8"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z"
-						/>
-					</svg>
-				</button>
+				<!-- Inline from sm up; on phones they fold behind «Opciones del chat». -->
+				<div class="ml-auto hidden flex-wrap items-center gap-x-4 gap-y-1 sm:flex">
+					{@render settings()}
+				</div>
+			{/if}
+		</div>
+		{#if data.activeId}
+			<div
+				id="chat-settings"
+				class={['mt-2 flex-col items-start gap-1 sm:hidden', settingsOpen ? 'flex' : 'hidden']}
+			>
+				{@render settings()}
 			</div>
 		{/if}
 	</div>
@@ -495,7 +476,7 @@
 		></button>
 	{/if}
 
-	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-6 p-6 sm:flex-row">
+	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-6 p-3 sm:flex-row sm:p-6">
 		<aside
 			{@attach drawer(conversationsOpen, () => (conversationsOpen = false), 'Conversaciones')}
 			class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-2 overflow-y-auto border-r p-4 shadow-xl sm:static sm:z-auto sm:flex sm:w-48 sm:max-w-none sm:gap-1 sm:border-0 sm:p-0 sm:shadow-none"
@@ -587,6 +568,7 @@
 						>
 							<div class="flex items-end gap-1.5">
 								<div
+									{@attach rovingFocus}
 									lang={data.activeConversation?.targetLanguage}
 									class="min-w-0 rounded-lg px-3 py-2 text-sm break-words"
 									style:background-color={message.role === 'user'
@@ -600,15 +582,17 @@
 										{#each buildHighlightSegments(text, analysisData.errors) as segment, i (i)}
 											{#if segment.type === 'spelling'}
 												<span
-													class="underline decoration-2 underline-offset-2"
-													style:text-decoration-style="wavy"
-													style:text-decoration-color="var(--color-danger)">{segment.text}</span
+													class="underline decoration-current decoration-wavy decoration-2 underline-offset-4"
+													>{segment.text}<span class="sr-only" lang="es">
+														(error de ortografía)</span
+													></span
 												>
 											{:else if segment.type === 'grammar'}
 												<span
-													class="underline decoration-2 underline-offset-2"
-													style:text-decoration-style="wavy"
-													style:text-decoration-color="var(--color-warning)">{segment.text}</span
+													class="underline decoration-current decoration-dashed decoration-2 underline-offset-4"
+													>{segment.text}<span class="sr-only" lang="es">
+														(error de gramática)</span
+													></span
 												>
 											{:else}
 												{segment.text}
@@ -619,6 +603,7 @@
 											{#if token.clickable}
 												<button
 													type="button"
+													data-word
 													onclick={() =>
 														lookupWord(token.text, sentenceContaining(text, token.start))}
 													class="hover:underline"
@@ -670,6 +655,14 @@
 							{:else if analysisData?.explanation}
 								<p class="text-xs italic" style:color="var(--color-ink-muted)">
 									{analysisData.explanation}
+								</p>
+							{/if}
+							{#if analysisData && analysisData.errors.length > 0}
+								<!-- Screen readers get the kind of error inline instead. -->
+								<p class="text-xs text-ink-muted" aria-hidden="true">
+									<span class="underline decoration-wavy underline-offset-4">ortografía</span>
+									·
+									<span class="underline decoration-dashed underline-offset-4">gramática</span>
 								</p>
 							{/if}
 							{#if suggestions === 'loading'}
@@ -740,10 +733,15 @@
 						variant="secondary"
 						onclick={translateInput}
 						disabled={busy || translatingInput || !input.trim()}
+						aria-label={translatingInput ? 'Traduciendo…' : 'Traducir mi mensaje al idioma'}
 					>
-						{translatingInput ? 'Traduciendo...' : 'Traducir'}
+						<Languages class="h-4 w-4 sm:hidden" aria-hidden="true" />
+						<span class="hidden sm:inline">{translatingInput ? 'Traduciendo...' : 'Traducir'}</span>
 					</Button>
-					<Button type="submit" disabled={busy}>Enviar</Button>
+					<Button type="submit" disabled={busy} aria-label="Enviar">
+						<SendHorizontal class="h-4 w-4 sm:hidden" aria-hidden="true" />
+						<span class="hidden sm:inline">Enviar</span>
+					</Button>
 				</form>
 			{/if}
 		</section>
@@ -763,6 +761,7 @@
 
 <dialog
 	bind:this={newDialog}
+	aria-labelledby="new-conversation-title"
 	onclick={(event) => {
 		if (event.target === newDialog) newDialog?.close();
 	}}
@@ -783,7 +782,7 @@
 		}}
 		class="flex flex-col gap-4 p-5"
 	>
-		<h2 class="text-lg font-semibold">Nueva conversación</h2>
+		<h2 id="new-conversation-title" class="text-lg font-semibold">Nueva conversación</h2>
 
 		<label class="flex flex-col gap-1 text-sm">
 			Idioma
@@ -848,3 +847,29 @@
 		</div>
 	</form>
 </dialog>
+
+{#snippet settings()}
+	<div class="flex flex-wrap items-center gap-2 text-sm">
+		<Button
+			variant="secondary"
+			onclick={extractVocabulary}
+			disabled={vocabExtraction === 'loading'}
+		>
+			Extraer vocabulario
+		</Button>
+		{#if vocabExtraction === 'loading'}
+			<span class="text-xs text-ink-muted italic">Extrayendo...</span>
+		{:else if vocabExtraction === 'error'}
+			<span class="text-xs text-danger">No se pudo extraer el vocabulario.</span>
+		{:else if vocabExtraction !== 'idle'}
+			<span class="text-xs text-ink-muted">
+				{vocabExtraction.added > 0
+					? `${vocabExtraction.added} palabra${vocabExtraction.added === 1 ? '' : 's'} nueva${vocabExtraction.added === 1 ? '' : 's'}`
+					: 'Sin palabras nuevas'} —
+				<a href={resolve('/study')} class="text-accent underline">ver libro de estudio</a>
+			</span>
+		{/if}
+	</div>
+	<Switch checked={autoPlay} label="Leer respuestas en voz alta" onchange={toggleAutoPlay} />
+	<Switch checked={quickReplies} label="Sugerencias de respuesta" onchange={toggleQuickReplies} />
+{/snippet}

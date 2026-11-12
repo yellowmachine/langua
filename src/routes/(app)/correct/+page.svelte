@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import { announcer } from '$lib/announcer.svelte';
 	import { LANGUAGES } from '$lib/languages';
@@ -8,7 +9,8 @@
 
 	let { data }: { data: PageData } = $props();
 
-	let targetLanguage = $state(data.user.targetLanguage ?? LANGUAGES[0].code);
+	// The account's languages are only the starting choice: the selects own it.
+	let targetLanguage = $state(untrack(() => data.user.targetLanguage ?? LANGUAGES[0].code));
 	let text = $state('');
 
 	type Correction = { original: string; correction: string; explanation: string };

@@ -38,13 +38,15 @@
 				<button
 					type="button"
 					title="{theme.label} · claro"
+					aria-label="{theme.label}, modo claro"
 					aria-pressed={isActive(theme.id, false)}
 					onclick={() => selectTheme(theme.id, false)}
 					class="relative h-9 w-1/2 border-r"
 					style:border-color="var(--color-border)"
 					style:background-color={theme.light.bg}
-					style:outline={isActive(theme.id, false) ? `2px solid ${theme.light.accent}` : 'none'}
-					style:outline-offset="-2px"
+					style:box-shadow={isActive(theme.id, false)
+						? `inset 0 0 0 2px ${theme.light.accent}`
+						: 'none'}
 				>
 					<span
 						class="absolute right-1 bottom-1 h-2 w-2 rounded-full"
@@ -54,12 +56,14 @@
 				<button
 					type="button"
 					title="{theme.label} · oscuro"
+					aria-label="{theme.label}, modo oscuro"
 					aria-pressed={isActive(theme.id, true)}
 					onclick={() => selectTheme(theme.id, true)}
 					class="relative h-9 w-1/2"
 					style:background-color={theme.dark.bg}
-					style:outline={isActive(theme.id, true) ? `2px solid ${theme.dark.accent}` : 'none'}
-					style:outline-offset="-2px"
+					style:box-shadow={isActive(theme.id, true)
+						? `inset 0 0 0 2px ${theme.dark.accent}`
+						: 'none'}
 				>
 					<span
 						class="absolute right-1 bottom-1 h-2 w-2 rounded-full"
