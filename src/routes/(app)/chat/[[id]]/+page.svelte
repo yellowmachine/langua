@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
+	import Chip from '$lib/components/ui/Chip.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 	import { announcer } from '$lib/announcer.svelte';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
@@ -369,17 +372,14 @@
 		style:border-color="var(--color-border)"
 	>
 		<div class="flex items-center gap-2">
-			<button
-				type="button"
+			<Button
 				onclick={() => {
 					newTitle = '';
 					newDialog?.showModal();
 				}}
-				class="rounded-md px-3 py-2 text-sm font-medium text-on-accent"
-				style:background-color="var(--color-accent)"
 			>
 				Nueva conversación
-			</button>
+			</Button>
 
 			<button
 				type="button"
@@ -402,15 +402,13 @@
 		{#if data.activeId}
 			<div class="flex flex-wrap items-center gap-4">
 				<div class="flex items-center gap-2 text-sm">
-					<button
-						type="button"
+					<Button
+						variant="secondary"
 						onclick={extractVocabulary}
 						disabled={vocabExtraction === 'loading'}
-						class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
-						style:border-color="var(--color-border)"
 					>
 						Extraer vocabulario
-					</button>
+					</Button>
 					{#if vocabExtraction === 'loading'}
 						<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
 					{:else if vocabExtraction === 'error'}
@@ -429,45 +427,13 @@
 					{/if}
 				</div>
 
-				<div class="flex items-center gap-2 text-sm">
-					<span style:color="var(--color-ink-muted)">Leer respuestas en voz alta</span>
-					<button
-						type="button"
-						role="switch"
-						aria-checked={autoPlay}
-						aria-label="Leer respuestas en voz alta"
-						onclick={toggleAutoPlay}
-						class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
-						style:border-color="var(--color-border)"
-						style:background-color={autoPlay ? 'var(--color-accent)' : 'var(--color-surface)'}
-					>
-						<span
-							class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
-							class:translate-x-4={autoPlay}
-							class:translate-x-0.5={!autoPlay}
-						></span>
-					</button>
-				</div>
+				<Switch checked={autoPlay} label="Leer respuestas en voz alta" onchange={toggleAutoPlay} />
 
-				<div class="flex items-center gap-2 text-sm">
-					<span style:color="var(--color-ink-muted)">Sugerencias de respuesta</span>
-					<button
-						type="button"
-						role="switch"
-						aria-checked={quickReplies}
-						aria-label="Sugerencias de respuesta"
-						onclick={toggleQuickReplies}
-						class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
-						style:border-color="var(--color-border)"
-						style:background-color={quickReplies ? 'var(--color-accent)' : 'var(--color-surface)'}
-					>
-						<span
-							class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
-							class:translate-x-4={quickReplies}
-							class:translate-x-0.5={!quickReplies}
-						></span>
-					</button>
-				</div>
+				<Switch
+					checked={quickReplies}
+					label="Sugerencias de respuesta"
+					onchange={toggleQuickReplies}
+				/>
 
 				<button
 					type="button"
@@ -684,16 +650,12 @@
 							{:else if Array.isArray(suggestions) && suggestions.length > 0}
 								<div class="flex flex-wrap gap-1.5">
 									{#each suggestions as suggestion, i (i)}
-										<button
-											type="button"
+										<Chip
 											lang={data.activeConversation?.targetLanguage}
 											onclick={() => useSuggestion(suggestion)}
-											class="rounded-full border border-dashed px-2.5 py-1 text-xs"
-											style:border-color="var(--color-accent)"
-											style:color="var(--color-accent)"
 										>
 											{suggestion}
-										</button>
+										</Chip>
 									{/each}
 								</div>
 							{/if}
@@ -745,23 +707,14 @@
 						style:border-color="var(--color-border)"
 						style:background-color="var(--color-background)"
 					/>
-					<button
-						type="button"
+					<Button
+						variant="secondary"
 						onclick={translateInput}
 						disabled={busy || translatingInput || !input.trim()}
-						class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
-						style:border-color="var(--color-border)"
 					>
 						{translatingInput ? 'Traduciendo...' : 'Traducir'}
-					</button>
-					<button
-						type="submit"
-						disabled={busy}
-						class="rounded-md px-4 py-2 text-sm font-medium text-on-accent"
-						style:background-color="var(--color-accent)"
-					>
-						Enviar
-					</button>
+					</Button>
+					<Button type="submit" disabled={busy}>Enviar</Button>
 				</form>
 			{/if}
 		</section>
@@ -838,15 +791,9 @@
 
 		<div class="flex flex-wrap gap-1.5">
 			{#each CONVERSATION_TEMPLATES as template (template.label)}
-				<button
-					type="button"
-					onclick={() => (newTitle = template.title)}
-					class="rounded-full border border-dashed px-2.5 py-1 text-xs"
-					style:border-color="var(--color-accent)"
-					style:color="var(--color-accent)"
-				>
+				<Chip onclick={() => (newTitle = template.title)}>
 					{template.label}
-				</button>
+				</Chip>
 			{/each}
 		</div>
 
@@ -867,21 +814,8 @@
 		{/if}
 
 		<div class="flex justify-end gap-2">
-			<button
-				type="button"
-				onclick={() => newDialog?.close()}
-				class="rounded-md border px-3 py-2 text-sm"
-				style:border-color="var(--color-border)"
-			>
-				Cancelar
-			</button>
-			<button
-				type="submit"
-				class="rounded-md px-3 py-2 text-sm font-medium text-on-accent"
-				style:background-color="var(--color-accent)"
-			>
-				Crear
-			</button>
+			<Button variant="secondary" onclick={() => newDialog?.close()}>Cancelar</Button>
+			<Button type="submit">Crear</Button>
 		</div>
 	</form>
 </dialog>

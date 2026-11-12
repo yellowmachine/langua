@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import type { Component } from 'svelte';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -140,14 +141,10 @@
 				<span class="text-sm" style:color="var(--color-ink-muted)">{user.name}</span>
 
 				<form method="POST" action="/logout">
-					<button
-						type="submit"
-						class="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
-						style:border-color="var(--color-border)"
-					>
+					<Button variant="secondary" class="flex items-center gap-2" type="submit">
 						<LogOut class="h-4 w-4" />
 						Cerrar sesión
-					</button>
+					</Button>
 				</form>
 			</div>
 		</nav>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
+	import Chip from '$lib/components/ui/Chip.svelte';
 	import { announcer } from '$lib/announcer.svelte';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
@@ -180,19 +182,9 @@
 									{#if item.tags.length > 0}
 										<div class="flex flex-wrap gap-1.5">
 											{#each item.tags as tag (tag)}
-												<button
-													type="button"
-													onclick={() => toggleTag(tag)}
-													class="rounded-full border border-dashed px-2 py-0.5 text-xs"
-													style:border-color={activeTag === tag
-														? 'var(--color-accent)'
-														: 'var(--color-border)'}
-													style:color={activeTag === tag
-														? 'var(--color-accent)'
-														: 'var(--color-ink-muted)'}
-												>
+												<Chip onclick={() => toggleTag(tag)} pressed={activeTag === tag}>
 													{tag}
-												</button>
+												</Chip>
 											{/each}
 										</div>
 									{/if}
@@ -235,14 +227,14 @@
 									{/each}
 
 									{#if state === 'idle'}
-										<button
-											type="button"
+										<Button
+											variant="secondary"
+											size="sm"
+											class="w-fit"
 											onclick={() => generateSentence(item.id)}
-											class="w-fit rounded-md border px-2.5 py-1 text-xs"
-											style:border-color="var(--color-border)"
 										>
 											Generar frase
-										</button>
+										</Button>
 									{:else if state === 'loading'}
 										<span class="text-xs italic" style:color="var(--color-ink-muted)"
 											>Generando...</span
@@ -268,22 +260,14 @@
 												<span style:color="var(--color-ink-muted)">— {state.translation}</span>
 											</p>
 											<SpeakButton text={state.sentence} language={item.targetLanguage} />
-											<button
-												type="button"
-												onclick={() => saveSentence(item.id)}
-												class="rounded-md px-2.5 py-1 text-xs font-medium text-on-accent"
-												style:background-color="var(--color-accent)"
-											>
-												Guardar
-											</button>
-											<button
-												type="button"
+											<Button size="sm" onclick={() => saveSentence(item.id)}>Guardar</Button>
+											<Button
+												variant="secondary"
+												size="sm"
 												onclick={() => discardSentence(item.id)}
-												class="rounded-md border px-2.5 py-1 text-xs"
-												style:border-color="var(--color-border)"
 											>
 												Descartar
-											</button>
+											</Button>
 										</div>
 									{/if}
 								</li>

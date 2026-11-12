@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -335,13 +336,7 @@
 							? 'No se pudo transcribir este clip.'
 							: 'La transcripción se interrumpió.'}
 					</p>
-					<button
-						type="submit"
-						class="rounded-md border px-3 py-1.5 text-sm"
-						style:border-color="var(--color-border)"
-					>
-						Reintentar
-					</button>
+					<Button variant="secondary" type="submit">Reintentar</Button>
 				</form>
 			{:else if data.clip.cues.length === 0}
 				<p class="p-2 text-sm" style:color="var(--color-ink-muted)">
@@ -380,15 +375,13 @@
 
 		{#if data.clip.language && data.clip.cues.length > 0 && !transcribing && !canRetry}
 			<div class="flex flex-wrap items-center gap-2 text-sm">
-				<button
-					type="button"
+				<Button
+					variant="secondary"
 					onclick={extractVocabulary}
 					disabled={vocabExtraction === 'loading'}
-					class="rounded-md border px-3 py-2 text-sm font-medium disabled:opacity-60"
-					style:border-color="var(--color-border)"
 				>
 					Extraer vocabulario
-				</button>
+				</Button>
 				{#if vocabExtraction === 'loading'}
 					<span class="text-xs italic" style:color="var(--color-ink-muted)">Extrayendo...</span>
 				{:else if vocabExtraction === 'error'}
@@ -411,30 +404,12 @@
 		<form method="POST" action="?/delete" use:enhance class="flex items-center gap-3">
 			{#if confirmingDelete}
 				<span class="text-sm">¿Borrar este clip y su audio?</span>
-				<button
-					type="submit"
-					class="rounded-md px-3 py-1.5 text-sm font-medium text-on-danger"
-					style:background-color="var(--color-danger)"
-				>
-					Borrar
-				</button>
-				<button
-					type="button"
-					onclick={() => (confirmingDelete = false)}
-					class="rounded-md border px-3 py-1.5 text-sm"
-					style:border-color="var(--color-border)"
-				>
-					Cancelar
-				</button>
+				<Button variant="danger" type="submit">Borrar</Button>
+				<Button variant="secondary" onclick={() => (confirmingDelete = false)}>Cancelar</Button>
 			{:else}
-				<button
-					type="button"
-					onclick={() => (confirmingDelete = true)}
-					class="rounded-md border px-3 py-1.5 text-sm text-danger"
-					style:border-color="var(--color-border)"
-				>
+				<Button variant="danger-outline" onclick={() => (confirmingDelete = true)}>
 					Borrar clip
-				</button>
+				</Button>
 			{/if}
 		</form>
 	</div>
@@ -530,41 +505,30 @@
 	>
 		<div class="flex items-center gap-1" role="group" aria-label="Velocidad">
 			{#each PLAYBACK_RATES as rate (rate)}
-				<button
-					type="button"
+				<Button
+					variant="secondary"
+					size="sm"
 					onclick={() => (playbackRate = rate)}
-					aria-pressed={playbackRate === rate}
-					class="rounded-md border px-2 py-1"
-					style:border-color={playbackRate === rate ? 'var(--color-accent)' : 'var(--color-border)'}
-					style:color={playbackRate === rate ? 'var(--color-accent)' : undefined}
+					pressed={playbackRate === rate}
 				>
 					{rate.toLocaleString('es')}×
-				</button>
+				</Button>
 			{/each}
 		</div>
-		<button
-			type="button"
+		<Button
+			variant="secondary"
+			size="sm"
 			onclick={toggleLoop}
-			aria-pressed={loopIndex !== null}
+			pressed={loopIndex !== null}
 			disabled={loopIndex === null && selectedIndex === null && activeIndex < 0}
-			class="flex items-center gap-1.5 rounded-md border px-2 py-1 disabled:opacity-50"
-			style:border-color={loopIndex !== null ? 'var(--color-accent)' : 'var(--color-border)'}
-			style:color={loopIndex !== null ? 'var(--color-accent)' : undefined}
 		>
 			<Repeat class="h-3.5 w-3.5" />
 			Repetir frase
-		</button>
-		<button
-			type="button"
-			onclick={toggleListenFirst}
-			aria-pressed={listenFirst}
-			class="flex items-center gap-1.5 rounded-md border px-2 py-1"
-			style:border-color={listenFirst ? 'var(--color-accent)' : 'var(--color-border)'}
-			style:color={listenFirst ? 'var(--color-accent)' : undefined}
-		>
+		</Button>
+		<Button variant="secondary" size="sm" onclick={toggleListenFirst} pressed={listenFirst}>
 			<EyeOff class="h-3.5 w-3.5" />
 			Escuchar primero
-		</button>
+		</Button>
 	</div>
 {/snippet}
 

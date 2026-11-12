@@ -14,6 +14,7 @@
 </script>
 
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import SpeakButton from './SpeakButton.svelte';
 	import { announcer } from '$lib/announcer.svelte';
 	import { drawer } from '$lib/drawer';
@@ -109,15 +110,9 @@
 					{lookup.sentence}
 				</p>
 			{/if}
-			<button
-				type="button"
-				onclick={onsave}
-				disabled={lookup.saved}
-				class="w-fit rounded-md px-2.5 py-1 text-xs font-medium text-on-accent disabled:opacity-60"
-				style:background-color="var(--color-accent)"
-			>
+			<Button size="sm" class="w-fit" onclick={onsave} disabled={lookup.saved}>
 				{lookup.saved ? 'Añadida al libro de estudio' : 'Añadir al libro de estudio'}
-			</button>
+			</Button>
 		</div>
 	{/if}
 </aside>

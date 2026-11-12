@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import { announcer } from '$lib/announcer.svelte';
 	import { LANGUAGES } from '$lib/languages';
 	import CorrectionsList from '$lib/components/CorrectionsList.svelte';
@@ -90,15 +91,9 @@
 		style:border-color="var(--color-border)"
 		style:background-color="var(--color-background)"></textarea>
 
-	<button
-		type="button"
-		onclick={check}
-		disabled={result === 'loading' || !text.trim()}
-		class="w-fit rounded-md px-4 py-2 text-sm font-medium text-on-accent disabled:opacity-60"
-		style:background-color="var(--color-accent)"
-	>
+	<Button class="w-fit" onclick={check} disabled={result === 'loading' || !text.trim()}>
 		{result === 'loading' ? 'Revisando...' : 'Corregir'}
-	</button>
+	</Button>
 
 	{#if result === 'error'}
 		<p class="text-sm" style:color="var(--color-danger)">No se pudo revisar el texto.</p>

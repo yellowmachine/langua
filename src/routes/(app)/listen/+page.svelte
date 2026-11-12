@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
+	import Chip from '$lib/components/ui/Chip.svelte';
 	import { announcer } from '$lib/announcer.svelte';
 	import { enhance } from '$app/forms';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
@@ -112,26 +114,15 @@
 				</select>
 			</label>
 
-			<button
-				type="submit"
-				disabled={generating || submitting}
-				class="rounded-md px-3 py-2 text-sm font-medium text-on-accent disabled:opacity-50"
-				style:background-color="var(--color-accent)"
-			>
+			<Button type="submit" disabled={generating || submitting}>
 				{generating ? 'Generando...' : exercise ? 'Otro ejercicio' : 'Nuevo ejercicio'}
-			</button>
+			</Button>
 
 			<div class="flex w-full flex-wrap gap-1.5">
 				{#each LISTENING_EXERCISE_TYPES as type (type.label)}
-					<button
-						type="button"
-						onclick={() => (exerciseType = type.prompt)}
-						class="rounded-full border border-dashed px-2.5 py-1 text-xs"
-						style:border-color="var(--color-accent)"
-						style:color="var(--color-accent)"
-					>
+					<Chip onclick={() => (exerciseType = type.prompt)}>
 						{type.label}
-					</button>
+					</Chip>
 				{/each}
 			</div>
 
@@ -209,14 +200,9 @@
 				{/each}
 
 				{#if !result}
-					<button
-						type="submit"
-						disabled={!allAnswered || submitting}
-						class="self-start rounded-md px-3 py-2 text-sm font-medium text-on-accent disabled:opacity-50"
-						style:background-color="var(--color-accent)"
-					>
+					<Button class="self-start" type="submit" disabled={!allAnswered || submitting}>
 						{submitting ? 'Corrigiendo...' : 'Comprobar respuestas'}
-					</button>
+					</Button>
 				{/if}
 			</form>
 

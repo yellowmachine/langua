@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Button from '$lib/components/ui/Button.svelte';
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
@@ -113,13 +114,7 @@
 					{/each}
 				</select>
 			</label>
-			<button
-				type="submit"
-				class="self-end rounded-md px-3 py-2 text-sm font-medium text-on-accent"
-				style:background-color="var(--color-accent)"
-			>
-				Guardar
-			</button>
+			<Button class="self-end" type="submit">Guardar</Button>
 		</form>
 		{#if messageFor('language')}
 			<p class="text-sm text-danger">{messageFor('language')}</p>
@@ -184,13 +179,7 @@
 					</select>
 				</label>
 			{/if}
-			<button
-				type="submit"
-				class="self-end rounded-md px-3 py-2 text-sm font-medium text-on-accent"
-				style:background-color="var(--color-accent)"
-			>
-				Guardar
-			</button>
+			<Button class="self-end" type="submit">Guardar</Button>
 		</form>
 		{#if messageFor('voice')}
 			<p class="text-sm text-danger">{messageFor('voice')}</p>
@@ -241,14 +230,9 @@
 					Token «{newToken.name}» creado. Cópialo ahora: no se volverá a mostrar.
 				</p>
 				<code class="font-mono break-all">{newToken.token}</code>
-				<button
-					type="button"
-					onclick={() => copyToken(newToken.token)}
-					class="self-start rounded-md border px-3 py-1.5 text-sm"
-					style:border-color="var(--color-border)"
-				>
+				<Button variant="secondary" class="self-start" onclick={() => copyToken(newToken.token)}>
 					{copied ? 'Copiado' : 'Copiar'}
-				</button>
+				</Button>
 			</div>
 		{/if}
 
@@ -267,13 +251,7 @@
 						</div>
 						<form method="POST" action="?/revokeToken" use:enhance>
 							<input type="hidden" name="id" value={token.id} />
-							<button
-								type="submit"
-								class="rounded-md border px-3 py-1.5 text-sm text-danger"
-								style:border-color="var(--color-border)"
-							>
-								Revocar
-							</button>
+							<Button variant="danger-outline" type="submit">Revocar</Button>
 						</form>
 					</li>
 				{/each}
@@ -306,13 +284,7 @@
 			{#if messageFor('createToken')}
 				<p class="text-sm text-danger">{messageFor('createToken')}</p>
 			{/if}
-			<button
-				type="submit"
-				class="self-start rounded-md px-3 py-2 text-sm font-medium text-on-accent"
-				style:background-color="var(--color-accent)"
-			>
-				Crear token
-			</button>
+			<Button class="self-start" type="submit">Crear token</Button>
 		</form>
 	</section>
 </div>

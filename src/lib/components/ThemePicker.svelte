@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Switch from '$lib/components/ui/Switch.svelte';
 	import { themeStore, THEMES, type ThemeId } from '$lib/theme.svelte';
 
 	let {
@@ -75,21 +76,10 @@
 	class="mt-4 flex items-center justify-between border-t pt-3"
 	style:border-color="var(--color-border)"
 >
-	<span class="text-sm">Alto contraste</span>
-	<button
-		type="button"
-		role="switch"
-		aria-checked={themeStore.highContrast}
-		aria-label="Alto contraste"
-		onclick={toggleHighContrast}
-		class="relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors"
-		style:border-color="var(--color-border)"
-		style:background-color={themeStore.highContrast ? 'var(--color-accent)' : 'var(--color-ui)'}
-	>
-		<span
-			class="absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-transform"
-			class:translate-x-4={themeStore.highContrast}
-			class:translate-x-0.5={!themeStore.highContrast}
-		></span>
-	</button>
+	<Switch
+		checked={themeStore.highContrast}
+		label="Alto contraste"
+		onchange={toggleHighContrast}
+		class="w-full justify-between"
+	/>
 </div>
