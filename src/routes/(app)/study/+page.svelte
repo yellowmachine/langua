@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { announcer } from '$lib/announcer.svelte';
 	import { resolve } from '$app/paths';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import { LANGUAGES } from '$lib/languages';
@@ -52,12 +53,15 @@
 			const response = await fetch(`/study/${itemId}/sentence`, { method: 'POST' });
 			if (!response.ok) {
 				generation[itemId] = 'error';
+				announcer.alert('No se pudo generar la frase.');
 				return;
 			}
 			const result: { sentence: string; translation: string } = await response.json();
 			generation[itemId] = { sentence: result.sentence, translation: result.translation };
+			announcer.say(`Frase nueva: ${result.sentence} — ${result.translation}`);
 		} catch {
 			generation[itemId] = 'error';
+			announcer.alert('No se pudo generar la frase.');
 		}
 	}
 
@@ -128,7 +132,8 @@
 		<div class="flex flex-wrap items-center gap-2">
 			<input
 				bind:value={searchQuery}
-				type="text"
+				aria-label="Buscar en el libro de estudio"
+				type="search"
 				placeholder="Buscar palabra o traducción..."
 				class="flex-1 rounded-md border px-3 py-2 text-sm"
 				style:border-color="var(--color-border)"

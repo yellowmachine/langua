@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { announcer } from '$lib/announcer.svelte';
 	import { Chat } from '@ai-sdk/svelte';
 	import { DefaultChatTransport } from 'ai';
 	import { enhance } from '$app/forms';
@@ -8,6 +9,7 @@
 	import WordPanel, { type WordLookup } from '$lib/components/WordPanel.svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import { fetchSpeechAudio } from '$lib/audio';
+	import { drawer } from '$lib/drawer';
 	import { LANGUAGES } from '$lib/languages';
 	import { LEVELS } from '$lib/levels';
 	import { CONVERSATION_TEMPLATES } from '$lib/conversationTemplates';
@@ -63,6 +65,7 @@
 					.map((part) => part.text)
 					.join('');
 				if (!text) return;
+				announcer.say(`Tutor: ${text}`);
 				if (autoPlay) {
 					fetchSpeechAudio(text, data.activeConversation?.targetLanguage).then((audio) =>
 						audio?.play()
@@ -99,6 +102,7 @@
 			})
 			.catch(() => {
 				startFailedFor = conversationId;
+				announcer.alert('No se pudo empezar la conversación.');
 			})
 			.finally(() => {
 				startingConversation = false;
@@ -113,6 +117,10 @@
 
 	// Last text the learner sent, to put back in the input if the reply fails.
 	let lastSent = $state('');
+
+	$effect(() => {
+		if (chat.error) announcer.alert('El tutor no ha podido responder.');
+	});
 
 	function retryReply() {
 		chat.clearError();
@@ -149,6 +157,7 @@
 			}
 			const result: { translation: string } = await response.json();
 			sessionTranslation[messageId] = result.translation;
+			announcer.say(`Traducción: ${result.translation}`);
 		} catch {
 			delete sessionTranslation[messageId];
 		}
@@ -168,10 +177,16 @@
 			});
 			if (!response.ok) {
 				vocabExtraction = 'error';
+				announcer.alert('No se pudo extraer el vocabulario.');
 				return;
 			}
 			const result: { added: number } = await response.json();
 			vocabExtraction = { added: result.added };
+			announcer.say(
+				result.added > 0
+					? `${result.added} palabras nuevas en el libro de estudio`
+					: 'Sin palabras nuevas'
+			);
 		} catch {
 			vocabExtraction = 'error';
 		}
@@ -192,7 +207,11 @@
 				delete sessionAnalysis[messageId];
 				return;
 			}
-			sessionAnalysis[messageId] = await response.json();
+			const analysis: MessageAnalysis = await response.json();
+			sessionAnalysis[messageId] = analysis;
+			if (analysis.errors.length > 0 && analysis.explanation) {
+				announcer.say(`Corrección de tu mensaje: ${analysis.explanation}`);
+			}
 		} catch {
 			delete sessionAnalysis[messageId];
 		}
@@ -226,6 +245,7 @@
 			if (!response.ok) return;
 			const result: { translation: string } = await response.json();
 			input = result.translation;
+			announcer.say(`Mensaje traducido: ${result.translation}`);
 		} finally {
 			translatingInput = false;
 		}
@@ -250,6 +270,9 @@
 			}
 			const result: { suggestions: string[] } = await response.json();
 			sessionSuggestions[messageId] = result.suggestions;
+			if (result.suggestions.length > 0) {
+				announcer.say(`${result.suggestions.length} sugerencias de respuesta`);
+			}
 		} catch {
 			delete sessionSuggestions[messageId];
 		}
@@ -470,7 +493,8 @@
 	{#if conversationsOpen}
 		<button
 			type="button"
-			aria-label="Cerrar"
+			tabindex="-1"
+			aria-hidden="true"
 			onclick={() => (conversationsOpen = false)}
 			class="fixed inset-0 z-30 bg-black/40 sm:hidden"
 		></button>
@@ -478,6 +502,7 @@
 
 	<div class="mx-auto flex min-h-0 w-full max-w-6xl flex-1 gap-6 p-6 sm:flex-row">
 		<aside
+			{@attach drawer(conversationsOpen, () => (conversationsOpen = false), 'Conversaciones')}
 			class="fixed inset-y-0 left-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-2 overflow-y-auto border-r p-4 shadow-xl sm:static sm:z-auto sm:flex sm:w-48 sm:max-w-none sm:gap-1 sm:border-0 sm:p-0 sm:shadow-none"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-background)"
@@ -710,6 +735,7 @@
 					/>
 					<input
 						bind:value={input}
+						aria-label="Mensaje para el tutor"
 						lang={data.activeConversation?.targetLanguage}
 						type="text"
 						placeholder="Escribe o graba un mensaje..."

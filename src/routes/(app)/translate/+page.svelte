@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { announcer } from '$lib/announcer.svelte';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import { LANGUAGES } from '$lib/languages';
 	import type { PageData } from './$types';
@@ -34,13 +35,16 @@
 			});
 			if (!response.ok) {
 				result = 'error';
+				announcer.alert('No se pudo traducir el texto.');
 				return;
 			}
 			const data: { translation: string } = await response.json();
 			resultLanguage = toLanguage;
 			result = data.translation;
+			announcer.say(`Traducción: ${data.translation}`);
 		} catch {
 			result = 'error';
+			announcer.alert('No se pudo traducir el texto.');
 		}
 	}
 </script>
@@ -53,6 +57,7 @@
 	<div class="flex items-center gap-2">
 		<select
 			bind:value={sourceLanguage}
+			aria-label="Idioma de origen"
 			class="flex-1 rounded-md border px-3 py-2 text-sm"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-surface)"
@@ -82,6 +87,7 @@
 
 		<select
 			bind:value={targetLanguage}
+			aria-label="Idioma de destino"
 			class="flex-1 rounded-md border px-3 py-2 text-sm"
 			style:border-color="var(--color-border)"
 			style:background-color="var(--color-surface)"
@@ -95,6 +101,7 @@
 	<textarea
 		bind:value={text}
 		lang={sourceLanguage}
+		aria-label="Texto a traducir"
 		rows="5"
 		placeholder="Escribe el texto a traducir..."
 		class="rounded-md border px-3 py-2 text-sm"

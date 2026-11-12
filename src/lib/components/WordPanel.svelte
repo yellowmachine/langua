@@ -15,6 +15,8 @@
 
 <script lang="ts">
 	import SpeakButton from './SpeakButton.svelte';
+	import { announcer } from '$lib/announcer.svelte';
+	import { drawer } from '$lib/drawer';
 
 	// Side panel with the word the learner clicked (chat messages, clip
 	// transcripts): beside the content on wide screens, a drawer on phones.
@@ -35,6 +37,16 @@
 		onsave: () => void;
 	} = $props();
 
+	// The panel may be off to the side (or closed on phones): say the result.
+	$effect(() => {
+		if (lookup === 'error') announcer.alert('No se pudo analizar la palabra.');
+		else if (lookup !== 'idle' && lookup !== 'loading') {
+			announcer.say(
+				lookup.saved ? 'Añadida al libro de estudio' : `${lookup.word}: ${lookup.translation}`
+			);
+		}
+	});
+
 	const WORD_POS_LABELS: Record<string, string> = {
 		noun: 'Sustantivo',
 		verb: 'Verbo',
@@ -47,13 +59,15 @@
 {#if open}
 	<button
 		type="button"
-		aria-label="Cerrar"
+		tabindex="-1"
+		aria-hidden="true"
 		onclick={onclose}
 		class="fixed inset-0 z-30 bg-black/40 sm:hidden"
 	></button>
 {/if}
 
 <aside
+	{@attach drawer(open, onclose, 'Palabra')}
 	class="fixed inset-y-0 right-0 z-40 w-72 max-w-[85%] shrink-0 flex-col gap-3 overflow-y-auto border-l p-4 shadow-xl sm:static sm:z-auto sm:flex sm:max-w-none sm:border-t-0 sm:p-0 sm:pl-4 sm:shadow-none"
 	style:border-color="var(--color-border)"
 	style:background-color="var(--color-background)"

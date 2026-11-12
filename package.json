@@ -64,6 +64,7 @@
 		"ai": "^7.0.37",
 		"better-auth": "^1.6.25",
 		"drizzle-orm": "^0.45.2",
+		"focus-trap": "^8.2.4",
 		"postgres": "^3.4.9",
 		"qrcode": "^1.5.4",
 		"svelte": "^5.56.1",

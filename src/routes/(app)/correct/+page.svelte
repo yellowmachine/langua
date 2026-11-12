@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { announcer } from '$lib/announcer.svelte';
 	import { LANGUAGES } from '$lib/languages';
 	import CorrectionsList from '$lib/components/CorrectionsList.svelte';
 	import SentenceAnalysis from '$lib/components/SentenceAnalysis.svelte';
@@ -43,11 +44,19 @@
 			});
 			if (!response.ok) {
 				result = 'error';
+				announcer.alert('No se pudo revisar el texto.');
 				return;
 			}
-			result = await response.json();
+			const checked: Exclude<Result, 'idle' | 'loading' | 'error'> = await response.json();
+			result = checked;
+			announcer.say(
+				checked.corrections.length === 0
+					? 'Revisión lista: no hay errores.'
+					: `Revisión lista: ${checked.corrections.length} correcciones.`
+			);
 		} catch {
 			result = 'error';
+			announcer.alert('No se pudo revisar el texto.');
 		}
 	}
 </script>
@@ -74,6 +83,7 @@
 	<textarea
 		bind:value={text}
 		lang={targetLanguage}
+		aria-label="Texto que quieres corregir"
 		rows="8"
 		placeholder="Escribe aquí tu texto para que lo revise..."
 		class="rounded-md border px-3 py-2 text-sm"

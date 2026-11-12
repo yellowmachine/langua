@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { announcer } from '$lib/announcer.svelte';
 	import { enhance } from '$app/forms';
 	import SpeakButton from '$lib/components/SpeakButton.svelte';
 	import { LANGUAGES } from '$lib/languages';
@@ -20,6 +21,7 @@
 	let generating = $state(false);
 	let submitting = $state(false);
 	let result = $state<{ graded: GradedQuestion[]; score: number } | null>(null);
+	let failure = $state('');
 
 	function scoreColor(score: number) {
 		if (score >= 85) return 'var(--color-accent)';
@@ -52,6 +54,7 @@
 			use:enhance={() => {
 				generating = true;
 				result = null;
+				failure = '';
 				return async ({ result: actionResult }) => {
 					generating = false;
 					if (actionResult.type === 'success' && actionResult.data) {
@@ -60,6 +63,10 @@
 							language: targetLanguage
 						};
 						selected = exercise.questions.map(() => -1);
+						announcer.say('Ejercicio listo. Pulsa escuchar y responde a las preguntas.');
+					} else {
+						failure = 'No se pudo crear el ejercicio. Inténtalo otra vez.';
+						announcer.alert(failure);
 					}
 				};
 			}}
@@ -132,6 +139,10 @@
 			</label>
 		</form>
 
+		{#if failure}
+			<p class="text-sm" style:color="var(--color-danger)">{failure}</p>
+		{/if}
+
 		{#if exercise}
 			<div class="flex items-center gap-2">
 				<SpeakButton text={exercise.passage} language={exercise.language} style="narration" />
@@ -143,10 +154,15 @@
 				action="?/submit"
 				use:enhance={() => {
 					submitting = true;
+					failure = '';
 					return async ({ result: actionResult }) => {
 						submitting = false;
 						if (actionResult.type === 'success' && actionResult.data) {
 							result = actionResult.data as { graded: GradedQuestion[]; score: number };
+							announcer.say(`Puntuación: ${result.score} de 100`);
+						} else {
+							failure = 'No se pudieron comprobar las respuestas. Inténtalo otra vez.';
+							announcer.alert(failure);
 						}
 					};
 				}}
@@ -166,9 +182,17 @@
 								{option}
 								{#if result}
 									{#if oi === result.graded[qi].correctIndex}
-										<span style:color="var(--color-accent)">✓</span>
+										<span style:color="var(--color-accent)"
+											><span aria-hidden="true">✓</span><span class="sr-only" lang="es"
+												>(correcta)</span
+											></span
+										>
 									{:else if oi === result.graded[qi].selectedIndex}
-										<span style:color="var(--color-danger)">✗</span>
+										<span style:color="var(--color-danger)"
+											><span aria-hidden="true">✗</span><span class="sr-only" lang="es"
+												>(tu respuesta, incorrecta)</span
+											></span
+										>
 									{/if}
 								{/if}
 							</label>
