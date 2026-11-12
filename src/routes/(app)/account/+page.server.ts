@@ -4,6 +4,8 @@ import { db } from '$lib/server/db';
 import { integrationToken, user as userTable } from '$lib/server/db/schema';
 import { generateIntegrationToken } from '$lib/server/api-auth';
 import { ACCENTS, isVoice } from '$lib/voices';
+import { LANGUAGES } from '$lib/languages';
+import { THEMES } from '$lib/theme.svelte';
 import type { Actions, PageServerLoad } from './$types';
 
 const MAX_TOKEN_NAME_LENGTH = 60;
@@ -31,7 +33,8 @@ export const actions: Actions = {
 		if (!event.locals.user) redirect(303, '/login');
 
 		const data = await event.request.formData();
-		const theme = String(data.get('theme') ?? 'warm');
+		const requested = String(data.get('theme') ?? '');
+		const theme = THEMES.some((t) => t.id === requested) ? requested : 'warm';
 		const dark = data.get('dark') === '1';
 		const highContrast = data.get('highContrast') === '1';
 
@@ -50,7 +53,8 @@ export const actions: Actions = {
 		const nativeLanguage = String(data.get('nativeLanguage') ?? '').trim();
 		const targetLanguage = String(data.get('targetLanguage') ?? '').trim();
 
-		if (!nativeLanguage || !targetLanguage) {
+		const known = (code: string) => LANGUAGES.some((lang) => lang.code === code);
+		if (!known(nativeLanguage) || !known(targetLanguage)) {
 			return fail(400, { formId: 'language', message: 'Elige los dos idiomas.' });
 		}
 

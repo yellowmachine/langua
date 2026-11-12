@@ -30,32 +30,41 @@ export function createAuthOptions(params: {
 			accountLinking: { enabled: true, trustedProviders: [SEILIDE_PROVIDER_ID] }
 		},
 		user: {
+			// `input: false`: set only by Langua's own actions (Mi cuenta), not
+			// through better-auth's sign-up/update-user endpoints.
 			additionalFields: {
 				nativeLanguage: {
+					input: false,
 					type: 'string',
 					required: false
 				},
 				targetLanguage: {
+					input: false,
 					type: 'string',
 					required: false
 				},
 				theme: {
+					input: false,
 					type: 'string',
 					defaultValue: 'warm'
 				},
 				dark: {
+					input: false,
 					type: 'boolean',
 					defaultValue: false
 				},
 				highContrast: {
+					input: false,
 					type: 'boolean',
 					defaultValue: false
 				},
 				voice: {
+					input: false,
 					type: 'string',
 					required: false
 				},
 				accent: {
+					input: false,
 					type: 'string',
 					required: false
 				}

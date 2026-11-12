@@ -5,6 +5,7 @@ import { cuesFromWhisperSegment, type WhisperSegment } from './whisper-cues';
 
 const STT_BASE_URL = env.STT_BASE_URL ?? 'http://stt:8000';
 const STT_MODEL = env.STT_MODEL ?? 'Systran/faster-whisper-small';
+const SHORT_TRANSCRIPTION_TIMEOUT_MS = 2 * 60_000;
 
 /**
  * Local faster-whisper-server (see docker/stt), OpenAI-compatible
@@ -20,7 +21,9 @@ export async function transcribeSpeech(audio: Blob, language?: string | null): P
 
 	const response = await fetch(`${STT_BASE_URL}/v1/audio/transcriptions`, {
 		method: 'POST',
-		body: form
+		body: form,
+		// A dictated message is short; don't leave the learner waiting forever.
+		signal: AbortSignal.timeout(SHORT_TRANSCRIPTION_TIMEOUT_MS)
 	});
 
 	if (!response.ok) {

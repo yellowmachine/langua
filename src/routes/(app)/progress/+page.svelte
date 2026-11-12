@@ -18,7 +18,9 @@
 	function formatDay(date: string) {
 		return new Date(`${date}T00:00:00Z`).toLocaleDateString('es', {
 			weekday: 'short',
-			day: 'numeric'
+			day: 'numeric',
+			// The key is already the local day: don't shift it again.
+			timeZone: 'UTC'
 		});
 	}
 </script>

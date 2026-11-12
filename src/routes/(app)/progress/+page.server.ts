@@ -1,6 +1,6 @@
 import { and, avg, count, eq, gte, sql } from 'drizzle-orm';
 import { chatMessage, listeningAttempt } from '$lib/server/db/schema';
-import { computeStreak } from '$lib/server/progress';
+import { computeStreak, recentDateKeys, TIME_ZONE } from '$lib/server/progress';
 import type { PageServerLoad } from './$types';
 
 const ACTIVITY_WINDOW_DAYS = 60;
@@ -15,8 +15,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	since.setUTCDate(since.getUTCDate() - (ACTIVITY_WINDOW_DAYS - 1));
 	since.setUTCHours(0, 0, 0, 0);
 
-	const chatDay = sql<string>`date_trunc('day', ${chatMessage.createdAt})::date`;
-	const listeningDay = sql<string>`date_trunc('day', ${listeningAttempt.createdAt})::date`;
+	// Timestamps are stored as UTC; the day is the family's local one.
+	const chatDay = sql<string>`(${chatMessage.createdAt} at time zone 'UTC' at time zone ${TIME_ZONE})::date`;
+	const listeningDay = sql<string>`(${listeningAttempt.createdAt} at time zone 'UTC' at time zone ${TIME_ZONE})::date`;
 
 	const [chatDays, listeningDays, [chatTotal], [listeningAgg]] = await Promise.all([
 		locals.withRLS((tx) =>
@@ -50,12 +51,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const streak = computeStreak(new Set(activityByDay.keys()));
 
-	const recentDays = Array.from({ length: RECENT_DAYS }, (_, i) => {
-		const day = new Date();
-		day.setUTCDate(day.getUTCDate() - (RECENT_DAYS - 1 - i));
-		const key = day.toISOString().slice(0, 10);
-		return { date: key, count: activityByDay.get(key) ?? 0 };
-	});
+	const recentDays = recentDateKeys(RECENT_DAYS).map((key) => ({
+		date: key,
+		count: activityByDay.get(key) ?? 0
+	}));
 
 	return {
 		streak,

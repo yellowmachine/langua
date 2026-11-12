@@ -1,5 +1,14 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import {
+	mkdir,
+	readdir,
+	readFile,
+	rename,
+	stat,
+	unlink,
+	utimes,
+	writeFile
+} from 'node:fs/promises';
 import path from 'node:path';
 import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
@@ -8,6 +17,10 @@ import { accentFor, DEFAULT_VOICE, type SpeechStyle, type VoiceId } from '$lib/v
 import { getSeilideAccessToken } from './chat';
 
 const AUDIO_CACHE_DIR = env.AUDIO_CACHE_DIR ?? './data/audio';
+/** Above this the least recently played phrases are deleted (default 1 GB). */
+const AUDIO_CACHE_MAX_BYTES = Number(env.AUDIO_CACHE_MAX_MB ?? 1024) * 1024 * 1024;
+/** How many new phrases between two size checks. */
+const PRUNE_EVERY = 50;
 
 // Same model Seilide uses for its own speech. Gemini's voices are
 // multilingual: the language, accent, tone and pace come from the
@@ -93,19 +106,54 @@ export async function synthesizeSpeech(
 	const cachePath = cachePathFor(TTS_MODEL, voice, instructions, text);
 
 	try {
-		return await readFile(cachePath);
+		const audio = await readFile(cachePath);
+		// Marks it as recently played, for pruneCache.
+		const now = new Date();
+		utimes(cachePath, now, now).catch(() => {});
+		return audio;
 	} catch {
 		// not cached yet, fall through to synthesis
 	}
 
-	let pending = inFlight.get(cachePath);
-	if (!pending) {
-		pending = synthesizeToCache(userId, text, voice, instructions, cachePath).finally(() =>
-			inFlight.delete(cachePath)
-		);
-		inFlight.set(cachePath, pending);
+	const shared = inFlight.get(cachePath);
+	if (shared) {
+		try {
+			return await shared;
+		} catch {
+			// That was someone else's request, with their token (and their
+			// family's credit): its failure isn't this user's. Ask with ours.
+		}
 	}
+
+	const pending = synthesizeToCache(userId, text, voice, instructions, cachePath).finally(() => {
+		if (inFlight.get(cachePath) === pending) inFlight.delete(cachePath);
+	});
+	inFlight.set(cachePath, pending);
 	return pending;
+}
+
+let writesSincePrune = 0;
+
+/**
+ * Keeps the shared cache under AUDIO_CACHE_MAX_BYTES by deleting the
+ * phrases least recently played (by modification time, which every read
+ * bumps). Best effort: a failure here never fails a request.
+ */
+export async function pruneCache(maxBytes = AUDIO_CACHE_MAX_BYTES): Promise<void> {
+	const names = (await readdir(AUDIO_CACHE_DIR)).filter((name) => name.endsWith('.wav'));
+	const files = await Promise.all(
+		names.map(async (name) => {
+			const file = path.join(AUDIO_CACHE_DIR, name);
+			const info = await stat(file).catch(() => null);
+			return { file, size: info?.size ?? 0, used: info?.mtimeMs ?? 0 };
+		})
+	);
+	let total = files.reduce((sum, f) => sum + f.size, 0);
+	for (const f of files.sort((a, b) => a.used - b.used)) {
+		if (total <= maxBytes) break;
+		await unlink(f.file).catch(() => {});
+		total -= f.size;
+	}
 }
 
 async function synthesizeToCache(
@@ -150,6 +198,11 @@ async function synthesizeToCache(
 	const partial = `${cachePath}.${crypto.randomUUID()}.part`;
 	await writeFile(partial, audio);
 	await rename(partial, cachePath);
+
+	if (++writesSincePrune >= PRUNE_EVERY) {
+		writesSincePrune = 0;
+		pruneCache().catch((cause) => console.error('[tts] pruning the cache failed', cause));
+	}
 
 	return audio;
 }

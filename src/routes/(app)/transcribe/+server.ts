@@ -18,7 +18,10 @@ export const POST: RequestHandler = async (event) => {
 		? (requested as string)
 		: event.locals.user.targetLanguage;
 
-	const text = await transcribeSpeech(audio, language);
-
-	return json({ text });
+	try {
+		return json({ text: await transcribeSpeech(audio, language) });
+	} catch (cause) {
+		console.error('[transcribe]', cause);
+		error(502, 'No se pudo transcribir la grabación. Inténtalo otra vez.');
+	}
 };
