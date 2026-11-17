@@ -228,17 +228,22 @@
 		<div>
 			<h2 class="mb-1 text-sm font-medium">Exportar tus datos</h2>
 			<p class="text-sm" style:color="var(--color-ink-muted)">
-				Todo lo tuyo en un fichero JSON: tu cuenta, conversaciones, vocabulario con sus repasos,
-				clips (sin el audio, que se descarga desde cada clip), ejercicios y gasto en IA.
+				Todo lo tuyo: tu cuenta, conversaciones, vocabulario con sus repasos, clips, ejercicios y
+				gasto en IA. El ZIP lleva además el audio de cada clip; el JSON, solo los datos.
 			</p>
 		</div>
-		<a
-			href={resolve('/account/export')}
-			download
-			class="inline-flex min-h-10 items-center self-start rounded-md bg-accent px-3 py-2 text-sm font-medium text-on-accent"
-		>
-			Descargar (JSON)
-		</a>
+		<div class="flex flex-wrap items-center gap-4">
+			<a
+				href={resolve('/account/export')}
+				download
+				class="inline-flex min-h-10 items-center rounded-md bg-accent px-3 py-2 text-sm font-medium text-on-accent"
+			>
+				Descargar todo (ZIP)
+			</a>
+			<a href="{resolve('/account/export')}?format=json" download class="text-sm underline">
+				Solo los datos (JSON)
+			</a>
+		</div>
 	</section>
 
 	<section

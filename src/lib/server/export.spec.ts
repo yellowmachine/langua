@@ -1,7 +1,7 @@
 /**
  * Exportar contra un Postgres real, con el rol restringido de la app (como
  * rls.spec.ts): todo lo de A, agrupado, y nada de B ni de lo que no se
- * exporta (hash de los tokens, clave del audio). Sin la base de datos local,
+ * exporta (hash de los tokens; la clave del audio, en el JSON). Sin la base de datos local,
  * se salta.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -12,7 +12,7 @@ import { sql } from 'drizzle-orm';
 import * as schema from './db/schema';
 import { createTestDatabase, isReachable } from './db/test-database';
 import type { WithRLS } from './db/rls';
-import { getExportData } from './export';
+import { exportJson, getExportData } from './export';
 
 const env = { ...loadEnv('test', process.cwd(), ''), ...process.env };
 const adminUrl = env.MIGRATION_DATABASE_URL;
@@ -107,7 +107,7 @@ describe.skipIf(!canRun)('getExportData', () => {
 		expect(data.clips.map((c) => c.title)).toEqual(['Film']);
 		expect(data.integrationTokens).toEqual([expect.objectContaining({ name: 'JellyCartoon' })]);
 
-		const json = JSON.stringify(data);
+		const json = exportJson(data);
 		for (const leak of ['bonjour', 'dog', 'b@exp.test', 'hash-a', 'clip-a.m4a', A]) {
 			expect(json).not.toContain(leak);
 		}

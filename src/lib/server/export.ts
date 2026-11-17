@@ -17,9 +17,9 @@ import {
 // Exportar los datos (RGPD, art. 20): todo lo de la cuenta en un JSON. Se
 // filtra por user_id aunque la RLS ya lo haga, para no depender solo de ella.
 // Fuera queda lo que no es del usuario sino de la app: sesiones, el hash de
-// los tokens, las claves de almacenamiento, y los ejercicios de Escuchar sin
-// contestar (llevan las respuestas). El audio de los clips no va: se puede
-// descargar desde cada clip.
+// los tokens y los ejercicios de Escuchar sin contestar (llevan las
+// respuestas). La clave del audio de cada clip solo sirve para ir a buscarlo
+// (export-zip.ts): no sale en el JSON (exportJson / audioFile en el ZIP).
 
 /** Sube cuando cambie la forma del fichero. */
 export const EXPORT_VERSION = 1;
@@ -100,7 +100,7 @@ export async function getExportData(withRLS: WithRLS, userId: string) {
 			.orderBy(asc(vocabReview.reviewedAt));
 
 		const clips = await tx
-			.select(columnsWithout(clip, 'userId', 'audioKey'))
+			.select(columnsWithout(clip, 'userId'))
 			.from(clip)
 			.where(eq(clip.userId, userId))
 			.orderBy(asc(clip.capturedAt));
@@ -159,3 +159,13 @@ export async function getExportData(withRLS: WithRLS, userId: string) {
 }
 
 export type ExportData = Awaited<ReturnType<typeof getExportData>>;
+
+/** Solo los datos, sin el audio: el JSON tal cual, sin las claves de almacenamiento. */
+export function exportJson(data: ExportData): string {
+	const clips = data.clips.map((clip) => {
+		const copy: Partial<typeof clip> = { ...clip };
+		delete copy.audioKey;
+		return copy;
+	});
+	return JSON.stringify({ ...data, clips }, null, 2);
+}
