@@ -220,6 +220,28 @@
 	</section>
 
 	<section
+		id="exportar"
+		class="flex flex-col gap-3 rounded-lg border p-4"
+		style:border-color="var(--color-border)"
+		style:background-color="var(--color-surface)"
+	>
+		<div>
+			<h2 class="mb-1 text-sm font-medium">Exportar tus datos</h2>
+			<p class="text-sm" style:color="var(--color-ink-muted)">
+				Todo lo tuyo en un fichero JSON: tu cuenta, conversaciones, vocabulario con sus repasos,
+				clips (sin el audio, que se descarga desde cada clip), ejercicios y gasto en IA.
+			</p>
+		</div>
+		<a
+			href={resolve('/account/export')}
+			download
+			class="inline-flex min-h-10 items-center self-start rounded-md bg-accent px-3 py-2 text-sm font-medium text-on-accent"
+		>
+			Descargar (JSON)
+		</a>
+	</section>
+
+	<section
 		class="flex flex-col gap-4 rounded-lg border p-4"
 		style:border-color="var(--color-border)"
 		style:background-color="var(--color-surface)"
@@ -309,7 +331,8 @@
 			<h2 class="font-medium text-danger">Borrar la cuenta</h2>
 			<p style:color="var(--color-ink-muted)">
 				Se borra todo lo tuyo en Langua: conversaciones, vocabulario y repasos, clips con su audio,
-				ejercicios, progreso, gasto en IA y tokens de integración. No se puede deshacer.
+				ejercicios, progreso, gasto en IA y tokens de integración. No se puede deshacer: antes,
+				<a href="#exportar" class="underline">exporta tus datos</a>.
 			</p>
 			{#if deletionLosses.length > 0}
 				<p>Ahora mismo tienes {deletionLosses.join(', ')}.</p>
