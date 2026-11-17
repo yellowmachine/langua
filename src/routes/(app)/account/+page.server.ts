@@ -3,6 +3,9 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { integrationToken, user as userTable } from '$lib/server/db/schema';
 import { generateIntegrationToken } from '$lib/server/api-auth';
+import { auth } from '$lib/server/auth';
+import { deleteAccount, getDeletionPreview, isRecentSession } from '$lib/server/account-deletion';
+import { clipStorage } from '$lib/server/storage';
 import { ACCENTS, isVoice } from '$lib/voices';
 import { LANGUAGES } from '$lib/languages';
 import { THEMES } from '$lib/theme.svelte';
@@ -13,19 +16,22 @@ const MAX_TOKEN_NAME_LENGTH = 60;
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) redirect(303, '/login');
 
-	const tokens = await locals.withRLS((tx) =>
-		tx
-			.select({
-				id: integrationToken.id,
-				name: integrationToken.name,
-				createdAt: integrationToken.createdAt,
-				lastUsedAt: integrationToken.lastUsedAt
-			})
-			.from(integrationToken)
-			.orderBy(desc(integrationToken.createdAt))
-	);
+	const [tokens, deletion] = await Promise.all([
+		locals.withRLS((tx) =>
+			tx
+				.select({
+					id: integrationToken.id,
+					name: integrationToken.name,
+					createdAt: integrationToken.createdAt,
+					lastUsedAt: integrationToken.lastUsedAt
+				})
+				.from(integrationToken)
+				.orderBy(desc(integrationToken.createdAt))
+		),
+		getDeletionPreview(locals.withRLS)
+	]);
 
-	return { tokens };
+	return { tokens, deletion, email: locals.user.email };
 };
 
 export const actions: Actions = {
@@ -125,5 +131,37 @@ export const actions: Actions = {
 		);
 
 		return { formId: 'revokeToken', success: true };
+	},
+
+	// Sin contraseña (se entra con Seilide): el email escrito y una sesión de
+	// hace menos de 15 minutos, por si alguien se encuentra la sesión abierta.
+	deleteAccount: async (event) => {
+		const { user, session } = event.locals;
+		if (!user || !session) redirect(303, '/login');
+
+		const data = await event.request.formData();
+		const confirmEmail = String(data.get('confirmEmail') ?? '').trim();
+		if (confirmEmail.toLowerCase() !== user.email.toLowerCase()) {
+			return fail(400, {
+				formId: 'deleteAccount',
+				message: 'El email no coincide con el de tu cuenta.',
+				reauth: false
+			});
+		}
+		if (!isRecentSession(session.createdAt)) {
+			return fail(400, {
+				formId: 'deleteAccount',
+				message:
+					'Por seguridad, vuelve a entrar antes de borrar la cuenta: tu sesión empezó hace más de 15 minutos.',
+				reauth: true
+			});
+		}
+
+		await deleteAccount(event.locals.withRLS, clipStorage, user.id);
+		// La sesión se fue con la cuenta; esto borra la cookie.
+		await auth.api
+			.signOut({ headers: event.request.headers })
+			.catch((err) => console.error('[account] signOut after delete failed:', err));
+		redirect(303, '/login?account-deleted');
 	}
 };

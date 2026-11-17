@@ -44,6 +44,18 @@
 		copied = true;
 	}
 
+	let confirmEmail = $state('');
+	let emailMatches = $derived(confirmEmail.trim().toLowerCase() === data.email.toLowerCase());
+	let deletionLosses = $derived(
+		[
+			[data.deletion.conversations, 'conversación', 'conversaciones'],
+			[data.deletion.words, 'palabra', 'palabras'],
+			[data.deletion.clips, 'clip', 'clips']
+		]
+			.filter(([n]) => Number(n) > 0)
+			.map(([n, one, many]) => `${n} ${n === 1 ? one : many}`)
+	);
+
 	function messageFor(formId: string) {
 		return form?.formId === formId && 'message' in form ? form.message : null;
 	}
@@ -285,6 +297,55 @@
 				<p class="text-sm text-danger">{messageFor('createToken')}</p>
 			{/if}
 			<Button class="self-start" type="submit">Crear token</Button>
+		</form>
+	</section>
+
+	<section
+		class="flex flex-col gap-4 rounded-lg border p-4"
+		style:border-color="var(--color-danger)"
+		style:background-color="var(--color-surface)"
+	>
+		<div class="flex flex-col gap-2 text-sm">
+			<h2 class="font-medium text-danger">Borrar la cuenta</h2>
+			<p style:color="var(--color-ink-muted)">
+				Se borra todo lo tuyo en Langua: conversaciones, vocabulario y repasos, clips con su audio,
+				ejercicios, progreso, gasto en IA y tokens de integración. No se puede deshacer.
+			</p>
+			{#if deletionLosses.length > 0}
+				<p>Ahora mismo tienes {deletionLosses.join(', ')}.</p>
+			{/if}
+			<p style:color="var(--color-ink-muted)">
+				Tu cuenta de Seilide no se toca. Si vuelves a entrar con ella, empezarás con una cuenta de
+				Langua nueva y vacía.
+			</p>
+		</div>
+
+		{#if messageFor('deleteAccount')}
+			<p class="text-sm text-danger" role="alert">{messageFor('deleteAccount')}</p>
+			{#if form && 'reauth' in form && form.reauth}
+				<form method="POST" action="/logout">
+					<Button variant="secondary" type="submit">Volver a entrar</Button>
+				</form>
+			{/if}
+		{/if}
+
+		<form method="POST" action="?/deleteAccount" use:enhance class="flex flex-col gap-3">
+			<label class="flex flex-col gap-1 text-sm">
+				<span>Escribe tu email (<strong>{data.email}</strong>) para confirmar</span>
+				<input
+					name="confirmEmail"
+					type="email"
+					autocomplete="off"
+					required
+					bind:value={confirmEmail}
+					class="rounded-md border px-3 py-2"
+					style:border-color="var(--color-border)"
+					style:background-color="var(--color-background)"
+				/>
+			</label>
+			<Button variant="danger" class="self-start" type="submit" disabled={!emailMatches}>
+				Borrar la cuenta para siempre
+			</Button>
 		</form>
 	</section>
 </div>

@@ -8,7 +8,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	// better-auth sends the browser back here with ?error=… when the sign-in
 	// with Seilide fails (cancelled, rejected, misconfigured client…).
-	return { failed: url.searchParams.has('error') };
+	return {
+		failed: url.searchParams.has('error'),
+		accountDeleted: url.searchParams.has('account-deleted')
+	};
 };
 
 export const actions: Actions = {

@@ -16,6 +16,9 @@
 	</div>
 
 	<form method="POST" class="flex flex-col gap-4">
+		{#if data.accountDeleted}
+			<p class="text-sm" role="status">Tu cuenta se ha borrado, con todo lo que tenías.</p>
+		{/if}
 		{#if data.failed}
 			<p class="text-sm text-danger">No se ha podido entrar con Seilide. Inténtalo otra vez.</p>
 		{/if}
